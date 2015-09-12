@@ -75,10 +75,12 @@ public:
 			F64 Hz = 1000.0/ frameTimeMS;
 
 			//Frame logging
+			std::cout << "Last frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
 		}
 
 		F64 totalTimeElapsed = timer->Get() - startTime;
 		//TODO: Log
+		std::cout << "Total teleoprator time: " << totalTimeElapsed << "s." << std::endl;
 
 
 		delete timer;

@@ -22,6 +22,9 @@
 #define EI_QUADRATIC 1
 #define EI_QUARTIC 2
 
+/**
+ * Gamepad struct holds all necessary analog and digital inputs
+ */
 struct Gamepad{
 	union{
 		F32 analog[6];
@@ -325,11 +328,11 @@ void UpdateInput(){
 			gamepads[i].rt = 0.0f;
 		}else{
 			if(gamepads[i].inputType == EI_LINEAR){
-				gamepads[i].rt = rt; //TODO: Adjust for clipping
+				gamepads[i].rt = (rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone);
 			}else if(gamepads[i].inputType == EI_QUADRATIC){
-				gamepads[i].rt = Sq(rt); //TODO: Adjust for clipping
+				gamepads[i].rt = Sq((rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone));
 			}else if(gamepads[i].inputType == EI_QUARTIC){
-				gamepads[i].rt = Qu(rt); //TODO: Adjust for clipping
+				gamepads[i].rt = Qu((rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone));
 			}
 		}
 
