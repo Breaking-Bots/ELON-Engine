@@ -1,5 +1,13 @@
+/*
+ * ELON.cpp
+ *
+ *  Created on: Sep 10, 2015
+ *      Author: Zaeem
+ */
+
 #include "WPILib.h"
-#include "typedefs.h"
+#include "Util.h"
+#include "Input.h"
 
 class ELON: public SampleRobot
 {
@@ -11,6 +19,15 @@ public:
 	ELON(){
 		//System startup
 		targetSecondsPerFrame = 1.0f/(F32)20;
+
+		//Input initialization
+		InitializeInput(1);
+		SetGamepadPorts(0);
+
+		//Chassis initialization
+		InitializeChassis(4);
+		SetMotorPorts(0, 1, 2, 3);
+		InitializeMotors();
 
 	}
 
@@ -29,6 +46,7 @@ public:
 		while(isOperatorControl() && isEnabled()){
 
 			//Input processing
+			UpdateInput();
 
 			//Executing commands
 
@@ -40,7 +58,9 @@ public:
 			if(secondsElapsedForFrame < targetSecondsPerFrame){
 				Wait(targetSecondsPerFrame - secondsElapsedForFrame);
 				F64 testSecondsElapsedForFrame = timer->Get() - lastTime;
-				if(testSecondsElapsedForFrame > 0) std::cout << "Waited Too Long" << std::endl;
+				if(testSecondsElapsedForFrame > 0){
+					std::cerr << "Waited Too Long." << std::endl;
+				}
 				while(secondsElapsedForFrame < targetSecondsPerFrame){
 					secondsElapsedForFrame = timer->Get() - lastTime;
 				}
@@ -71,6 +91,8 @@ public:
 
 	~ELON(){
 		//System shutdown
+		TerminateChassis();
+		TerminateInput();
 	}
 };
 
