@@ -9,6 +9,8 @@
 #include "Util.h"
 #include "Input.h"
 #include "Properties.h"
+#include "Chassis.h"
+#include "Elevator.h"
 
 inline F64 SystemTime(){
 	return GetFPGATime() * 1000.0;
@@ -30,7 +32,10 @@ public:
 		SetGamepadPorts(0);
 
 		//Chassis initialization
-		InitializeChassis(0, 1, 2, 3);
+		InitializeChassis(CHASSIS_PORTS);
+
+		//Elevator initialization
+		InitializeElevator(ELEVATOR_PORT);
 
 	}
 
@@ -56,8 +61,24 @@ public:
 			F32 rt = RT(0);
 			std::cout << "[ELON] " << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
 
+			if(START(0)){
+				EnableChassis(TRUE);
+			}else if(BACK(0)){
+				EnableChassis(FALSE);
+			}
+
+			ELONDrive(-LY(0), RX(0));
+			Elevate(RB(0) - LB(0));
+
+			F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, RT(0) - LT(0));
+			F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(RT(0) - LT(0)));
+
+			SetChassisMagnitude(chassisMagnitude);
+			SetElevatorMagnitude(elevatorMagnitude);
+
 			//Updating subsystems
 			UpdateChassis();
+			UpdateElevator();
 
 			//Time processing
 			F64 workTime = SystemTime();
@@ -99,6 +120,7 @@ public:
 
 	~ELON(){
 		//System shutdown
+		TerminateElevator();
 		TerminateChassis();
 		TerminateInput();
 	}

@@ -7,7 +7,6 @@
 
 #include "WPILib.h"
 #include "Chassis.h"
-#include <cmath>
 
 B32 motorsInitialized = FALSE;
 
@@ -37,15 +36,11 @@ void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRigh
 	motorPorts[3] = backRight;
 
 	for(U32 i = 0; i < nMotors; i++){
-			motors[i] = new Talon(motorPorts[i]);
+			motors[i] = Talon(motorPorts[i]);
 			invertedMotors[i] = 1;
 	}
 	motorsInitialized = TRUE;
 	StopMotors();
-}
-
-void InitializeMotors(){
-
 }
 
 void TerminateChassis(){
@@ -64,10 +59,10 @@ void TerminateChassis(){
 }
 
 intern void SetLeftRightMotorValues(F32 leftMgntd, F32 rightMgntd){
-	motorValues[0] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[0] * chassisMagnitude);
-	motorValues[1] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[1] * chassisMagnitude);
-	motorValues[2] = (Clamp(rightMgntd, -1.0f, 1.0f) * invertedMotors[2] * chassisMagnitude);
-	motorValues[3] = (Clamp(rightMgntd, -1.0f, 1.0f) * invertedMotors[3] * chassisMagnitude);
+	motorValues[0] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[0]);
+	motorValues[1] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[1]);
+	motorValues[2] = (Clamp(rightMgntd, -1.0f, 1.0f) * invertedMotors[2]);
+	motorValues[3] = (Clamp(rightMgntd, -1.0f, 1.0f) * invertedMotors[3]);
 }
 
 intern void SetMotorValues(F32 motor0, F32 motor1, F32 motor2, F32 motor3){
@@ -147,7 +142,7 @@ void InvertMotor(U32 motorPort){
 void UpdateChassis(){
 	if(motorsInitialized && chassisEnabled){
 		for(U32 i = 0; i < nMotors; i++){
-			motors[i].Set(motorValues[i]);
+			motors[i].Set(motorValues[i] * chassisMagnitude);
 		}
 	}else{
 		StopMotors();

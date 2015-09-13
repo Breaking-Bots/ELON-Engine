@@ -7,8 +7,6 @@
 
 #include "WPILib.h"
 #include "Input.h"
-#include <cmath>
-
 
 #define _LX 0
 #define _LY 1

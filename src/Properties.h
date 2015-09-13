@@ -3,4 +3,17 @@
 
 #define LOOP_HZ 20.0f
 
+#define CHASSIS_PORT_FL 0
+#define CHASSIS_PORT_BL 1
+#define CHASSIS_PORT_FR 2
+#define CHASSIS_PORT_BR 3
+#define CHASSIS_PORTS CHASSIS_PORT_FL, CHASSIS_PORT_BL, CHASSIS_PORT_FR, CHASSIS_PORT_BR
+
+#define ELEVATOR_PORT 4
+
+#define MIN_SPEED (0.30f)
+#define DEF_SPEED (0.65f)
+#define MAX_SPEED (1.00f)
+
+
 #endif

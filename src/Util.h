@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cfloat>
+#include <cmath>
 
 #define lscope static
 #define glob static
@@ -63,27 +64,79 @@ typedef double F64;
 #define Align8(value) ((value + 7) & ~7)
 #define Align16(value) ((value + 15) & ~15)
 
+/**
+ * Clamps a value to a max and a min
+ */
 F32 Clamp(F32 value, F32 min, F32 max){
 	if(value < min) return min;
 	else if(value > max) return max;
 	return value;
 }
 
+/**
+ * Retruns max of two values
+ */
 F32 Max(F32 a, F32 b){
 	if(b > a) return b;
 	return a;
 }
 
+/**
+ * Returns x^2
+ */
 F32 Sq(F32 x){
 	return x * x;
 }
 
+/**
+ * return x^4
+ */
 F32 Qu(F32 x){
 	return x * x * x * x;
 }
 
+/**
+ * Returns the sign of a value; -1 or +1
+ */
 I32 Sgn(F32 x){
 	return (0 < x) - (x < 0);
+}
+
+/**
+ * Normalizes a value of [-1.0f, 1.0f] to [0.0f, 1.0f]
+ */
+F32 NormalizeAlpha(F32 alpha){
+	return 0.5f * alpha + 0.5f;
+}
+
+/**
+ * Linear Interpolation between two values
+ * alpha [0.0f, 1.0f], percentage between two values
+ */
+F32 Lerp(F32 min, F32 max, F32 alpha){
+	return (1.0f - alpha) * min + alpha * max;
+}
+
+/**
+ * Cosine interpolation between two values. smoother than linear interpolation
+ * alpha [0.0f, 1.0f], percentage between two values
+ */
+F32 Coserp(F32 min, F32 max, F32 alpha){
+	F32 alpha2 = (1.0f - cosf(alpha * PI)) * 0.5f;
+	return (1.0f - alpha2) * min + alpha2 * max;
+}
+
+/**
+ * Cosine interpolation between three values
+ * alpha [-1.0f, 1.0f], percentage displacement from middle value
+ */
+F32 SystemMagnitudeInterpolation(F32 min, F32 mid, F32 max, F32 alpha){
+	if(alpha < 0.0f){
+		alpha++;
+		return Coserp(min, mid, alpha);
+	}else{
+		return Coserp(mid, max, alpha);
+	}
 }
 
 #endif
