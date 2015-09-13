@@ -73,7 +73,7 @@ void SetGamepadPorts(U32 primary){
 	if(nGamepads == 1){
 		gamepadPorts[0] = primary;
 	}else{
-		std::cerr << "Amount of gamepad ports do not match number of gamepads: " << nGamepads << "." << std::endl;
+		std::cerr << "[ERROR] Amount of gamepad ports do not match number of gamepads: " << nGamepads << "." << std::endl;
 	}
 }
 
@@ -82,7 +82,7 @@ void SetGamepadPorts(U32 primary, U32 secondary){
 		gamepadPorts[0] = primary;
 		gamepadPorts[1] = secondary;
 	}else{
-		std::cerr << "Amount of gamepad ports do not match number of gamepads: " << nGamepads << "." << std::endl;
+		std::cerr << "[ERROR] Amount of gamepad ports do not match number of gamepads: " << nGamepads << "." << std::endl;
 	}
 }
 

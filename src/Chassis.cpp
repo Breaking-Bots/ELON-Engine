@@ -141,7 +141,7 @@ void InvertMotor(U32 motorPort){
 			}
 		}
 	}
-	std::cerr << "Invalid port: " << motorPort << "." << std::endl;
+	std::cerr << "[ERROR] Invalid port: " << motorPort << "." << std::endl;
 }
 
 void UpdateChassis(){

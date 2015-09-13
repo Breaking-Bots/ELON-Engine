@@ -54,7 +54,7 @@ public:
 			F32 ry = RY(0);
 			F32 lt = LT(0);
 			F32 rt = RT(0);
-			std::cout << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
+			std::cout << "[ELON] " << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
 
 			//Updating subsystems
 			UpdateChassis();
@@ -68,7 +68,7 @@ public:
 				Wait(targetSecondsPerFrame - secondsElapsedForFrame);
 				F64 testSecondsElapsedForFrame = SystemTime() - lastTime;
 				if(testSecondsElapsedForFrame > 0){
-					std::cerr << "Waited Too Long." << std::endl;
+					std::cerr << "[ERROR] Waited Too Long." << std::endl;
 				}
 				while(secondsElapsedForFrame < targetSecondsPerFrame){
 					secondsElapsedForFrame = SystemTime() - lastTime;
@@ -84,12 +84,12 @@ public:
 			F64 Hz = 1000.0/ frameTimeMS;
 
 			//Frame logging
-			std::cout << "Last frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
+			std::cout << "[ELON] Last frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
 		}
 
 		F64 totalTimeElapsed = (SystemTime() - startTime) * 1000.0;
 		//TODO: Log
-		std::cout << "Total teleoprator time: " << totalTimeElapsed << "s." << std::endl;
+		std::cout << "[ELON] Total teleoprator time: " << totalTimeElapsed << "s." << std::endl;
 	}
 
 	void Test()
