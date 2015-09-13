@@ -8,6 +8,11 @@
 #include "WPILib.h"
 #include "Util.h"
 #include "Input.h"
+#include "Properties.h"
+
+inline F64 SystemTime(){
+	return GetFPGATime() * 1000.0;
+}
 
 class ELON: public SampleRobot
 {
@@ -18,16 +23,14 @@ public:
 
 	ELON(){
 		//System startup
-		targetSecondsPerFrame = 1.0f/(F32)20;
+		targetSecondsPerFrame = 1.0f/LOOP_HZ;
 
 		//Input initialization
 		InitializeInput(1);
 		SetGamepadPorts(0);
 
 		//Chassis initialization
-		InitializeChassis(4);
-		SetMotorPorts(0, 1, 2, 3);
-		InitializeMotors();
+		InitializeChassis(0, 1, 2, 3);
 
 	}
 
@@ -38,39 +41,45 @@ public:
 
 	void OperatorControl()
 	{
-		Timer* timer = new Timer();
-		timer->Start();
-		F64 startTime = timer->Get();
-		F64 lastTime = timer->Get();
+		F64 startTime = SystemTime();
+		F64 lastTime = SystemTime();
 
-		while(isOperatorControl() && isEnabled()){
+		while(IsOperatorControl() && IsEnabled()){
 
 			//Input processing
 			UpdateInput();
+			F32 lx = LX(0);
+			F32 ly = LY(0);
+			F32 rx = RX(0);
+			F32 ry = RY(0);
+			F32 lt = LT(0);
+			F32 rt = RT(0);
+			std::cout << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
 
-			//Executing commands
+			//Updating subsystems
+			UpdateChassis();
 
 			//Time processing
-			F64 workTime = timer->Get();
+			F64 workTime = SystemTime();
 			F64 workSecondsElapsed = workTime - lastTime;
 
 			F64 secondsElapsedForFrame = workSecondsElapsed;
 			if(secondsElapsedForFrame < targetSecondsPerFrame){
 				Wait(targetSecondsPerFrame - secondsElapsedForFrame);
-				F64 testSecondsElapsedForFrame = timer->Get() - lastTime;
+				F64 testSecondsElapsedForFrame = SystemTime() - lastTime;
 				if(testSecondsElapsedForFrame > 0){
 					std::cerr << "Waited Too Long." << std::endl;
 				}
 				while(secondsElapsedForFrame < targetSecondsPerFrame){
-					secondsElapsedForFrame = timer->Get() - lastTime;
+					secondsElapsedForFrame = SystemTime() - lastTime;
 				}
 			}else{
 				//TODO: MISSED FRAME
 				//TODO: Log
 			}
 
-			F64 endTime = timer->Get();
-			F64 frameTimeMS = 1000.0 * (endTime - lastTime);
+			F64 endTime = SystemTime();
+			F64 frameTimeMS = endTime - lastTime;
 			lastTime = endTime;
 			F64 Hz = 1000.0/ frameTimeMS;
 
@@ -78,12 +87,9 @@ public:
 			std::cout << "Last frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
 		}
 
-		F64 totalTimeElapsed = timer->Get() - startTime;
+		F64 totalTimeElapsed = (SystemTime() - startTime) * 1000.0;
 		//TODO: Log
 		std::cout << "Total teleoprator time: " << totalTimeElapsed << "s." << std::endl;
-
-
-		delete timer;
 	}
 
 	void Test()

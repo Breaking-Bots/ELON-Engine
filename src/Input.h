@@ -4,6 +4,13 @@
 #include "Util.h"
 
 /**
+ * Controller input type
+ */
+enum InputType{
+	LINEAR, QUADRATIC, QUARTIC
+};
+
+/**
  * Initialization Order: InitializeInput, SetGamepadPorts
  */
 void InitializeInput(U32 numGamepads);
@@ -42,6 +49,19 @@ F32 RT(U32 gamepadPort);
  * Returns angle of D-PAD in degrees, or -1 if not pressed
  */
 I32 DPAD(U32 gamepadPort);
+
+/**
+ * Gets InputType (LINEAR, QUADRATIC, QUARTIC)
+ */
+InputType GetInputType(U32 gamepadPort);
+
+/**
+ * Sets Inputtype for give controller
+ * LINEAR provied linear control at all speeds
+ * QUADRATIC provides more control at lower speeds (DEFAULT)
+ * QUARTIC provides most control at lower speeds
+ */
+void SetInputType(U32 gamepadPort, InputType inputType);
 
 /**
  * Updates the gamepads from data recieved from driver station

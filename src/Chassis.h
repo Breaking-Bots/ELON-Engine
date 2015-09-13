@@ -4,12 +4,9 @@
 #include "Util.h"
 
 /**
- * Initialization Order: InitializeChassis, SetMotorPorts, InitialzeMotors
+ * Initialize chassis and motors
  */
-void InitializeChassis(U32 numMotors);
-void SetMotorPorts(U32 left, U32 right);
-void SetMotorPorts(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight);
-void InitializeMotors();
+void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight);
 
 /**
  * Free chassis memory
@@ -53,5 +50,10 @@ void StopMotors();
  * Inverts motor that has been inserted backwards
  */
 void InvertMotor(U32 motorPort);
+
+/**
+ * Writes motor values to motor controllers
+ */
+void UpdateChassis();
 
 #endif

@@ -18,10 +18,6 @@
 #define _RY 5
 #define NUM_BUTTONS 10
 
-#define EI_LINEAR 0
-#define EI_QUADRATIC 1
-#define EI_QUARTIC 2
-
 /**
  * Gamepad struct holds all necessary analog and digital inputs
  */
@@ -53,7 +49,7 @@ struct Gamepad{
 		};
 	};
 	I32 dpad;
-	U32 inputType = EI_QUADRATIC;
+	InputType inputType = InputType::QUADRATIC;
 };
 
 U32 nGamepads; //Number of active gamepads
@@ -97,7 +93,7 @@ void TerminateInput(){
 	if(gamepads){
 		delete[] gamepads;
 	}
-	ds = null;
+	ds = NULL;
 }
 
 U32 Buttons(U32 gamepadPort){
@@ -244,6 +240,23 @@ I32 DPAD(U32 gamepadPort){
 	}
 }
 
+InputType GetInputType(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].inputType;
+		}
+	}
+}
+
+
+void SetInputType(U32 gamepadPort, InputType inputType){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			gamepads[i].inputType = inputType;
+		}
+	}
+}
+
 void UpdateInput(){
 	for(U32 i = 0; i < nGamepads; i++){
 		gamepads[i].buttons = ds->GetStickButtons(gamepadPorts[i]);
@@ -266,13 +279,13 @@ void UpdateInput(){
 			lmgntd -= deadzone;
 			lx = nlxFactor * lmgntd;
 			ly = nlyFactor * lmgntd;
-			if(gamepads[i].inputType == EI_LINEAR){
+			if(gamepads[i].inputType == InputType::LINEAR){
 				gamepads[i].lx = lx / (1 - deadzone * nlxFactor * Sgn(lx));
 				gamepads[i].ly = ly / (1 - deadzone * nlyFactor * Sgn(ly));
-			}else if(gamepads[i].inputType == EI_QUADRATIC){
+			}else if(gamepads[i].inputType == InputType::QUADRATIC){
 				gamepads[i].lx = (lx / Sq(1 - deadzone * nlxFactor * Sgn(lx)));
 				gamepads[i].ly = (ly / Sq(1 - deadzone * nlyFactor * Sgn(ly)));
-			}else if(gamepads[i].inputType == EI_QUARTIC){
+			}else if(gamepads[i].inputType == InputType::QUARTIC){
 				gamepads[i].lx = (lx / Qu(1 - deadzone * nlxFactor * Sgn(lx)));
 				gamepads[i].ly = (ly / Qu(1 - deadzone * nlyFactor * Sgn(ly)));
 			}
@@ -296,13 +309,13 @@ void UpdateInput(){
 			rmgntd -= deadzone;
 			lx = nrxFactor * rmgntd;
 			ly = nryFactor * rmgntd;
-			if(gamepads[i].inputType == EI_LINEAR){
+			if(gamepads[i].inputType == InputType::LINEAR){
 				gamepads[i].rx = rx / (1 - deadzone * nrxFactor * Sgn(rx));
 				gamepads[i].ry = ry / (1 - deadzone * nryFactor * Sgn(ry));
-			}else if(gamepads[i].inputType == EI_QUADRATIC){
+			}else if(gamepads[i].inputType == InputType::QUADRATIC){
 				gamepads[i].rx = (rx / Sq(1 - deadzone * nrxFactor * Sgn(rx)));
 				gamepads[i].ry = (ry / Sq(1 - deadzone * nryFactor * Sgn(ry)));
-			}else if(gamepads[i].inputType == EI_QUARTIC){
+			}else if(gamepads[i].inputType == InputType::QUARTIC){
 				gamepads[i].rx = (rx / Qu(1 - deadzone * nrxFactor * Sgn(rx)));
 				gamepads[i].ry = (ry / Qu(1 - deadzone * nryFactor * Sgn(ry)));
 			}
@@ -313,12 +326,12 @@ void UpdateInput(){
 		if(lt < triggerDeadzone){
 			gamepads[i].lt = 0.0f;
 		}else{
-			if(gamepads[i].inputType == EI_LINEAR){
-				gamepads[i].lt = lt; //TODO: Adjust for clipping
-			}else if(gamepads[i].inputType == EI_QUADRATIC){
-				gamepads[i].lt = Sq(lt); //TODO: Adjust for clipping
-			}else if(gamepads[i].inputType == EI_QUARTIC){
-				gamepads[i].lt = Qu(lt); //TODO: Adjust for clipping
+			if(gamepads[i].inputType == InputType::LINEAR){
+				gamepads[i].lt = (lt - triggerDeadzone * Sgn(lt))/(1.0f - triggerDeadzone);
+			}else if(gamepads[i].inputType == InputType::QUADRATIC){
+				gamepads[i].lt = Sq((lt - triggerDeadzone * Sgn(lt))/(1.0f - triggerDeadzone));
+			}else if(gamepads[i].inputType == InputType::QUARTIC){
+				gamepads[i].lt = Qu((lt - triggerDeadzone * Sgn(lt))/(1.0f - triggerDeadzone));
 			}
 		}
 
@@ -327,11 +340,11 @@ void UpdateInput(){
 		if(rt < triggerDeadzone){
 			gamepads[i].rt = 0.0f;
 		}else{
-			if(gamepads[i].inputType == EI_LINEAR){
+			if(gamepads[i].inputType == InputType::LINEAR){
 				gamepads[i].rt = (rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone);
-			}else if(gamepads[i].inputType == EI_QUADRATIC){
+			}else if(gamepads[i].inputType == InputType::QUADRATIC){
 				gamepads[i].rt = Sq((rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone));
-			}else if(gamepads[i].inputType == EI_QUARTIC){
+			}else if(gamepads[i].inputType == InputType::QUARTIC){
 				gamepads[i].rt = Qu((rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone));
 			}
 		}
