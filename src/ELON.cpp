@@ -70,8 +70,8 @@ public:
 			ELONDrive(-LY(0), RX(0));
 			Elevate(RB(0) - LB(0));
 
-			F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, RT(0) - LT(0));
-			F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(RT(0) - LT(0)));
+			F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+			F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(rt - lt));
 
 			SetChassisMagnitude(chassisMagnitude);
 			SetElevatorMagnitude(elevatorMagnitude);
