@@ -65,78 +65,61 @@ typedef double F64;
 #define Align16(value) ((value + 15) & ~15)
 
 /**
- * Clamps a value to a max and a min
+ * Get FGPA clock time in seconds
  */
-F32 Clamp(F32 value, F32 min, F32 max){
-	if(value < min) return min;
-	else if(value > max) return max;
-	return value;
-}
+F64 SystemTime();
 
 /**
- * Retruns max of two values
+ * Delays code execution by a given time in seconds
  */
-F32 Max(F32 a, F32 b){
-	if(b > a) return b;
-	return a;
-}
+void Sleep(F64 secs);
+
+/**
+ * Clamps a value to a max and a min
+ */
+F32 Clamp(F32 value, F32 min, F32 max);
+
+/**
+ * Returns max of two values
+ */
+F32 Max(F32 a, F32 b);
 
 /**
  * Returns x^2
  */
-F32 Sq(F32 x){
-	return x * x;
-}
+F32 Sq(F32 x);
 
 /**
- * return x^4
+ * Returns x^4
  */
-F32 Qu(F32 x){
-	return x * x * x * x;
-}
+F32 Qu(F32 x);
 
 /**
  * Returns the sign of a value; -1 or +1
  */
-I32 Sgn(F32 x){
-	return (0 < x) - (x < 0);
-}
+I32 Sgn(F32 x);
 
 /**
  * Normalizes a value of [-1.0f, 1.0f] to [0.0f, 1.0f]
  */
-F32 NormalizeAlpha(F32 alpha){
-	return 0.5f * alpha + 0.5f;
-}
+F32 NormalizeAlpha(F32 alpha);
 
 /**
  * Linear Interpolation between two values
  * alpha [0.0f, 1.0f], percentage between two values
  */
-F32 Lerp(F32 min, F32 max, F32 alpha){
-	return (1.0f - alpha) * min + alpha * max;
-}
+F32 Lerp(F32 min, F32 max, F32 alpha);
 
 /**
  * Cosine interpolation between two values. smoother than linear interpolation
  * alpha [0.0f, 1.0f], percentage between two values
  */
-F32 Coserp(F32 min, F32 max, F32 alpha){
-	F32 alpha2 = (1.0f - cosf(alpha * PI)) * 0.5f;
-	return (1.0f - alpha2) * min + alpha2 * max;
-}
+F32 Coserp(F32 min, F32 max, F32 alpha);
 
 /**
  * Cosine interpolation between three values
  * alpha [-1.0f, 1.0f], percentage displacement from middle value
  */
-F32 SystemMagnitudeInterpolation(F32 min, F32 mid, F32 max, F32 alpha){
-	if(alpha < 0.0f){
-		alpha++;
-		return Coserp(min, mid, alpha);
-	}else{
-		return Coserp(mid, max, alpha);
-	}
-}
+F32 SystemMagnitudeInterpolation(F32 min, F32 mid, F32 max, F32 alpha);
 
 #endif

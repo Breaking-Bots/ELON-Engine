@@ -12,10 +12,6 @@
 #include "Chassis.h"
 #include "Elevator.h"
 
-inline F64 SystemTime(){
-	return GetFPGATime() * 1000.0;
-}
-
 class ELON: public SampleRobot
 {
 
@@ -59,7 +55,7 @@ public:
 			F32 ry = RY(0);
 			F32 lt = LT(0);
 			F32 rt = RT(0);
-			std::cout << "[ELON] " << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
+			//std::cout << "[ELON] " << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
 
 			if(START(0)){
 				EnableChassis(TRUE);
@@ -67,14 +63,14 @@ public:
 				EnableChassis(FALSE);
 			}
 
-			ELONDrive(-LY(0), RX(0));
+			ELONDrive(ly, rx);
 			Elevate(RB(0) - LB(0));
 
 			F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 			F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(rt - lt));
 
 			SetChassisMagnitude(chassisMagnitude);
-			SetElevatorMagnitude(elevatorMagnitude);
+			SetElevatorMagnitude(chassisMagnitude);
 
 			//Updating subsystems
 			UpdateChassis();
@@ -88,7 +84,7 @@ public:
 			if(secondsElapsedForFrame < targetSecondsPerFrame){
 				Wait(targetSecondsPerFrame - secondsElapsedForFrame);
 				F64 testSecondsElapsedForFrame = SystemTime() - lastTime;
-				if(testSecondsElapsedForFrame > 0){
+				if(testSecondsElapsedForFrame < 0){
 					std::cerr << "[ERROR] Waited Too Long." << std::endl;
 				}
 				while(secondsElapsedForFrame < targetSecondsPerFrame){
@@ -100,7 +96,7 @@ public:
 			}
 
 			F64 endTime = SystemTime();
-			F64 frameTimeMS = endTime - lastTime;
+			F64 frameTimeMS = (endTime - lastTime) * 1000.0;
 			lastTime = endTime;
 			F64 Hz = 1000.0/ frameTimeMS;
 
@@ -108,13 +104,19 @@ public:
 			std::cout << "[ELON] Last frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
 		}
 
-		F64 totalTimeElapsed = (SystemTime() - startTime) * 1000.0;
+		F64 totalTimeElapsedSeconds = (SystemTime() - startTime);
+		U32 totalMinutes = totalTimeElapsedSeconds / 60;
+		F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 		//TODO: Log
-		std::cout << "[ELON] Total teleoprator time: " << totalTimeElapsed << "s." << std::endl;
+		std::cout << "[ELON] Total teleoperator time: " << totalMinutes << "m" << totalSeconds << "s." << std::endl;
 	}
 
 	void Test()
 	{
+
+	}
+
+	void Disabled(){
 
 	}
 
@@ -126,7 +128,7 @@ public:
 	}
 };
 
-U32 main(U32 argc, I8** argv) {
+I32 main() {
 	if (!HALInitialize()){
 		std::cerr<<"[ERROR] HAL could not be initialized."<<std::endl;
 		return -1;

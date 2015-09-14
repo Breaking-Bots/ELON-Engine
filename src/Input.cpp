@@ -57,14 +57,14 @@ U32* gamepadPorts; //Array of gamepad ports
 
 F32 deadzone = 0.25f;
 F32 deadzone2 = deadzone * deadzone;
-F32 triggerDeadzone = 0.12f;
+F32 triggerDeadzone = 0.06f;
 
 
 void InitializeInput(U32 numGamepads){
 	nGamepads = numGamepads;
 	ds = DriverStation::GetInstance();
-	gamepads = new Gamepad[nMotors];
-	gamepadPorts = new U32[nMotors];
+	gamepads = new Gamepad[nGamepads];
+	gamepadPorts = new U32[nGamepads];
 }
 
 void SetGamepadPorts(U32 primary){
@@ -100,6 +100,7 @@ U32 Buttons(U32 gamepadPort){
 			return gamepads[i].buttons;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 A(U32 gamepadPort){
@@ -108,6 +109,7 @@ B32 A(U32 gamepadPort){
 			return gamepads[i].a;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 B(U32 gamepadPort){
@@ -116,6 +118,7 @@ B32 B(U32 gamepadPort){
 			return gamepads[i].b;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 X(U32 gamepadPort){
@@ -124,6 +127,7 @@ B32 X(U32 gamepadPort){
 			return gamepads[i].x;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 Y(U32 gamepadPort){
@@ -132,6 +136,7 @@ B32 Y(U32 gamepadPort){
 			return gamepads[i].y;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 LB(U32 gamepadPort){
@@ -140,6 +145,7 @@ B32 LB(U32 gamepadPort){
 			return gamepads[i].lb;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 RB(U32 gamepadPort){
@@ -148,6 +154,7 @@ B32 RB(U32 gamepadPort){
 			return gamepads[i].rb;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 BACK(U32 gamepadPort){
@@ -156,6 +163,7 @@ B32 BACK(U32 gamepadPort){
 			return gamepads[i].back;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 START(U32 gamepadPort){
@@ -164,6 +172,7 @@ B32 START(U32 gamepadPort){
 			return gamepads[i].start;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 L3(U32 gamepadPort){
@@ -172,6 +181,7 @@ B32 L3(U32 gamepadPort){
 			return gamepads[i].l3;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 B32 R3(U32 gamepadPort){
@@ -180,6 +190,7 @@ B32 R3(U32 gamepadPort){
 			return gamepads[i].r3;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 F32 LX(U32 gamepadPort){
@@ -188,6 +199,7 @@ F32 LX(U32 gamepadPort){
 			return gamepads[i].lx;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 F32 LY(U32 gamepadPort){
@@ -196,6 +208,7 @@ F32 LY(U32 gamepadPort){
 			return gamepads[i].ly;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 F32 RX(U32 gamepadPort){
@@ -204,6 +217,7 @@ F32 RX(U32 gamepadPort){
 			return gamepads[i].rx;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 F32 RY(U32 gamepadPort){
@@ -212,6 +226,7 @@ F32 RY(U32 gamepadPort){
 			return gamepads[i].ry;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 F32 LT(U32 gamepadPort){
@@ -220,6 +235,7 @@ F32 LT(U32 gamepadPort){
 			return gamepads[i].lt;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 F32 RT(U32 gamepadPort){
@@ -228,6 +244,7 @@ F32 RT(U32 gamepadPort){
 			return gamepads[i].rt;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 I32 DPAD(U32 gamepadPort){
@@ -236,6 +253,7 @@ I32 DPAD(U32 gamepadPort){
 			return gamepads[i].dpad;
 		}
 	}
+	return 0; //TODO: controller doesn't exist
 }
 
 InputType GetInputType(U32 gamepadPort){
@@ -244,6 +262,7 @@ InputType GetInputType(U32 gamepadPort){
 			return gamepads[i].inputType;
 		}
 	}
+	return InputType::QUADRATIC; //TODO: controller doesn't exist
 }
 
 
@@ -278,18 +297,18 @@ void UpdateInput(){
 			lx = nlxFactor * lmgntd;
 			ly = nlyFactor * lmgntd;
 			if(gamepads[i].inputType == InputType::LINEAR){
-				gamepads[i].lx = lx / (1 - deadzone * nlxFactor * Sgn(lx));
-				gamepads[i].ly = ly / (1 - deadzone * nlyFactor * Sgn(ly));
+				gamepads[i].lx = lx / (1 - deadzone * nlxFactor);
+				gamepads[i].ly = ly / (1 - deadzone * nlyFactor);
 			}else if(gamepads[i].inputType == InputType::QUADRATIC){
-				gamepads[i].lx = (lx / Sq(1 - deadzone * nlxFactor * Sgn(lx)));
-				gamepads[i].ly = (ly / Sq(1 - deadzone * nlyFactor * Sgn(ly)));
+				gamepads[i].lx = Sq(lx / (1 - deadzone * nlxFactor * Sgn(lx))) * Sgn(lx);
+				gamepads[i].ly = Sq(ly / (1 - deadzone * nlyFactor * Sgn(ly))) * Sgn(ly);
 			}else if(gamepads[i].inputType == InputType::QUARTIC){
-				gamepads[i].lx = (lx / Qu(1 - deadzone * nlxFactor * Sgn(lx)));
-				gamepads[i].ly = (ly / Qu(1 - deadzone * nlyFactor * Sgn(ly)));
+				gamepads[i].lx = Qu(lx / (1 - deadzone * nlxFactor * Sgn(lx))) * Sgn(lx);
+				gamepads[i].ly = Qu(ly / (1 - deadzone * nlyFactor * Sgn(ly))) * Sgn(ly);
 			}
 		}
 
-		//Circular deadzone processing of rigth joystick
+		//Circular deadzone processing of right joystick
 		F32 rx = ds->GetStickAxis(gamepadPorts[i], _RX);
 		F32 ry = ds->GetStickAxis(gamepadPorts[i], _RY);
 		F32 rmgntd2 = rx*rx+ry*ry;
@@ -305,17 +324,17 @@ void UpdateInput(){
 				rmgntd = 1.0f;
 			}
 			rmgntd -= deadzone;
-			lx = nrxFactor * rmgntd;
-			ly = nryFactor * rmgntd;
+			rx = nrxFactor * rmgntd;
+			ry = nryFactor * rmgntd;
 			if(gamepads[i].inputType == InputType::LINEAR){
 				gamepads[i].rx = rx / (1 - deadzone * nrxFactor * Sgn(rx));
 				gamepads[i].ry = ry / (1 - deadzone * nryFactor * Sgn(ry));
 			}else if(gamepads[i].inputType == InputType::QUADRATIC){
-				gamepads[i].rx = (rx / Sq(1 - deadzone * nrxFactor * Sgn(rx)));
-				gamepads[i].ry = (ry / Sq(1 - deadzone * nryFactor * Sgn(ry)));
+				gamepads[i].rx = Sq(rx / (1 - deadzone * nrxFactor * Sgn(rx))) * Sgn(rx);
+				gamepads[i].ry = Sq(ry / (1 - deadzone * nryFactor * Sgn(ry))) * Sgn(ry);
 			}else if(gamepads[i].inputType == InputType::QUARTIC){
-				gamepads[i].rx = (rx / Qu(1 - deadzone * nrxFactor * Sgn(rx)));
-				gamepads[i].ry = (ry / Qu(1 - deadzone * nryFactor * Sgn(ry)));
+				gamepads[i].rx = Qu(rx / (1 - deadzone * nrxFactor * Sgn(rx))) * Sgn(rx);
+				gamepads[i].ry = Qu(ry / (1 - deadzone * nryFactor * Sgn(ry))) * Sgn(ry);
 			}
 		}
 

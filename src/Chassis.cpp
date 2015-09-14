@@ -13,7 +13,7 @@ B32 motorsInitialized = FALSE;
 F32 sensitivity = 0.5f;
 
 U32 nMotors; //Number of used motors
-SpeedController* motors; //Array of motor controllers
+SpeedController** motors; //Array of motor controllers
 F32* motorValues; //Array of motor speed values
 U32* motorPorts; //Array of motor ports
 I8* invertedMotors; //Number of motors inverted
@@ -25,7 +25,7 @@ B32 chassisEnabled;
 
 void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight){
 	nMotors = 4;
-	motors = new SpeedController[nMotors];
+	motors = new SpeedController*[nMotors];
 	motorValues = new F32[nMotors];
 	motorPorts = new U32[nMotors];
 	invertedMotors = new I8[nMotors];
@@ -36,8 +36,8 @@ void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRigh
 	motorPorts[3] = backRight;
 
 	for(U32 i = 0; i < nMotors; i++){
-			motors[i] = Talon(motorPorts[i]);
-			invertedMotors[i] = 1;
+			motors[i] = new Talon(motorPorts[i]);
+			invertedMotors[i] = -1;
 	}
 	motorsInitialized = TRUE;
 	StopMotors();
@@ -54,6 +54,11 @@ void TerminateChassis(){
 		delete[] motorPorts;
 	}
 	if(motors){
+		for(U32 i = 0; i < nMotors; i++){
+			if(motors[i]){
+				delete motors[i];
+			}
+		}
 		delete[] motors;
 	}
 }
@@ -61,8 +66,8 @@ void TerminateChassis(){
 intern void SetLeftRightMotorValues(F32 leftMgntd, F32 rightMgntd){
 	motorValues[0] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[0]);
 	motorValues[1] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[1]);
-	motorValues[2] = (Clamp(rightMgntd, -1.0f, 1.0f) * invertedMotors[2]);
-	motorValues[3] = (Clamp(rightMgntd, -1.0f, 1.0f) * invertedMotors[3]);
+	motorValues[2] = (Clamp(-rightMgntd, -1.0f, 1.0f) * invertedMotors[2]);
+	motorValues[3] = (Clamp(-rightMgntd, -1.0f, 1.0f) * invertedMotors[3]);
 }
 
 intern void SetMotorValues(F32 motor0, F32 motor1, F32 motor2, F32 motor3){
@@ -97,6 +102,8 @@ void TankDrive(F32 leftMgntd, F32 rightMgntd){
 }
 
 void ELONDrive(F32 fwdMgntd, F32 turnMgntd){
+	fwdMgntd = Clamp(fwdMgntd, -1.0f, 1.0f);
+	turnMgntd = Clamp(turnMgntd, -1.0f, 1.0f);
 	if(fwdMgntd > 0.0f){
 		if(turnMgntd > 0.0f){
 			SetLeftRightMotorValues(fwdMgntd - turnMgntd, Max(fwdMgntd, turnMgntd));
@@ -123,7 +130,7 @@ void EnableChassis(B32 enable){
 void StopMotors(){
 	if(motorsInitialized){
 		for(U32 i = 0; i < nMotors; i++){
-			motors[i].Set(0.0f);
+			motors[i]->Set(0.0f);
 		}
 	}
 }
@@ -142,7 +149,7 @@ void InvertMotor(U32 motorPort){
 void UpdateChassis(){
 	if(motorsInitialized && chassisEnabled){
 		for(U32 i = 0; i < nMotors; i++){
-			motors[i].Set(motorValues[i] * chassisMagnitude);
+			motors[i]->Set(motorValues[i] * chassisMagnitude);
 		}
 	}else{
 		StopMotors();

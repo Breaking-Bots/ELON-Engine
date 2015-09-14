@@ -1,7 +1,7 @@
 #ifndef ELON_PROPERTIES_H
 #define ELON_PROPERTIES_H
 
-#define LOOP_HZ 20.0f
+#define LOOP_HZ 200.0f
 
 #define CHASSIS_PORT_FL 0
 #define CHASSIS_PORT_BL 1
