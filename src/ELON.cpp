@@ -15,13 +15,13 @@
 class ELON: public SampleRobot
 {
 
-F32 targetSecondsPerFrame;
+F64 targetMSPerFrame;
 
 public:
 
 	ELON(){
 		//System startup
-		targetSecondsPerFrame = 1.0f/LOOP_HZ;
+		targetMSPerFrame = 1000.0/LOOP_HZ;
 
 		//Input initialization
 		InitializeInput(1);
@@ -77,26 +77,23 @@ public:
 			UpdateElevator();
 
 			//Time processing
-			F64 workTime = SystemTime();
-			F64 workSecondsElapsed = workTime - lastTime;
-
-			F64 secondsElapsedForFrame = workSecondsElapsed;
-			if(secondsElapsedForFrame < targetSecondsPerFrame){
-				Wait(targetSecondsPerFrame - secondsElapsedForFrame);
-				F64 testSecondsElapsedForFrame = SystemTime() - lastTime;
-				if(testSecondsElapsedForFrame < 0){
+			F64 workMSElapsed = SystemTime() - lastTime;
+			if(workMSElapsed < targetMSPerFrame){
+				Wait((targetMSPerFrame - workMSElapsed * 1000.0));
+				F64 testMSElapsedForFrame = SystemTime() - lastTime;
+				if(testMSElapsedForFrame > targetMSPerFrame){
 					std::cerr << "[ERROR] Waited Too Long." << std::endl;
 				}
-				while(secondsElapsedForFrame < targetSecondsPerFrame){
-					secondsElapsedForFrame = SystemTime() - lastTime;
-				}
+				do{
+					workMSElapsed = SystemTime() - lastTime;
+				} while(workMSElapsed < targetMSPerFrame);
 			}else{
 				//TODO: MISSED FRAME
 				//TODO: Log
 			}
 
 			F64 endTime = SystemTime();
-			F64 frameTimeMS = (endTime - lastTime) * 1000.0;
+			F64 frameTimeMS = endTime - lastTime;
 			lastTime = endTime;
 			F64 Hz = 1000.0/ frameTimeMS;
 
@@ -104,7 +101,7 @@ public:
 			std::cout << "[ELON] Last frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
 		}
 
-		F64 totalTimeElapsedSeconds = (SystemTime() - startTime);
+		F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 		U32 totalMinutes = totalTimeElapsedSeconds / 60;
 		F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 		//TODO: Log

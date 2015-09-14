@@ -8,12 +8,7 @@
 #include "Util.h"
 
 F64 SystemTime(){
-	return GetFPGATime() / 1000000.0;
-}
-
-void Sleep(F64 secs){
-	F64 startTime = SystemTime();
-	while(SystemTime() - startTime > secs){}
+	return GetFPGATime() / 1000.0;
 }
 
 F32 Clamp(F32 value, F32 min, F32 max){

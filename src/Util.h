@@ -65,14 +65,14 @@ typedef double F64;
 #define Align16(value) ((value + 15) & ~15)
 
 /**
- * Get FGPA clock time in seconds
+ * Get FGPA clock time in milliseconds
  */
 F64 SystemTime();
 
 /**
- * Delays code execution by a given time in seconds
+ * Delays code execution by a given time in milliseconds
  */
-void Sleep(F64 secs);
+void Sleep(F64 ms);
 
 /**
  * Clamps a value to a max and a min
