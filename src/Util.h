@@ -51,6 +51,7 @@ typedef double F64;
 #define True (0xFFFFFFFF)
 #define False (0x00000000)
 #define EPSILON (0.00001f)
+#define EZERO (0.000000001f)
 
 #define KiB(value) ((value)*1024LL)
 #define MiB(value) (KiB(value)*1024LL)
@@ -68,11 +69,6 @@ typedef double F64;
  * Get FGPA clock time in milliseconds
  */
 F64 SystemTime();
-
-/**
- * Delays code execution by a given time in milliseconds
- */
-void Sleep(F64 ms);
 
 /**
  * Clamps a value to a max and a min
@@ -121,5 +117,35 @@ F32 Coserp(F32 min, F32 max, F32 alpha);
  * alpha [-1.0f, 1.0f], percentage displacement from middle value
  */
 F32 SystemMagnitudeInterpolation(F32 min, F32 mid, F32 max, F32 alpha);
+
+/**
+ * Returns the angle normalized to a value of [0,360] degrees
+ */
+F32 PrincipalAngleDeg(F32 deg);
+
+/**
+ * Returns the angle normalized to a value of [0,TAU] radians
+ */
+F32 PrincipalAngleRad(F32 rad);
+
+/**
+ * Returns the angle normalized to a value of [-180,180] degrees
+ */
+F32 MinDistAngleDeg(F32 deg);
+
+/**
+ * Returns the angle normalized to a value of [-PI,PI] radians
+ */
+F32 MinDistAngleRad(F32 rad);
+
+/**
+ * Returns the principal distance of [-180,180] degrees between two angles
+ */
+F32 AngularDistDeg(F32 from, F32 to);
+
+/**
+ * Returns the principal distance of [-PI,PI] between two angles
+ */
+F32 AngularDistRad(F32 from, F32 to);
 
 #endif

@@ -17,18 +17,21 @@ SpeedController** motors; //Array of motor controllers
 F32* motorValues; //Array of motor speed values
 U32* motorPorts; //Array of motor ports
 I8* invertedMotors; //Number of motors inverted
+Gyro* gyro; //Gyroscope
 
 F32 chassisMagnitude;
 B32 chassisEnabled;
 
 
 
-void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight){
+void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight, U32 gyroPort, U32 gyroSensitivity){
 	nMotors = 4;
 	motors = new SpeedController*[nMotors];
 	motorValues = new F32[nMotors];
 	motorPorts = new U32[nMotors];
 	invertedMotors = new I8[nMotors];
+	gyro = new Gyro(gyroPort);
+	gyro->SetSensitivity(gyroSensitivity);
 
 	motorPorts[0] = frontLeft;
 	motorPorts[1] = backLeft;
@@ -82,16 +85,16 @@ void RawDrive(F32 mgntd, F32 curve){
 		F32 value = logf(-curve);
 		F32 ratio = (value - sensitivity) / (value + sensitivity);
 		if(ratio == 0) {
-			ratio = EPSILON;
+			ratio = EZERO;
 		}
 		SetLeftRightMotorValues(mgntd/ratio, mgntd);
 	}else if(curve > 0){
 		F32 value = logf(curve);
 		F32 ratio = (value - sensitivity) / (value + sensitivity);
 		if(ratio == 0){
-			ratio = EPSILON;
+			ratio = EZERO;
 		}
-		SetLeftRightMotorValues(mgntd, mgntd/mgntd);
+		SetLeftRightMotorValues(mgntd, mgntd/ratio);
 	}else{
 		SetLeftRightMotorValues(mgntd, mgntd);
 	}
@@ -144,6 +147,14 @@ void InvertMotor(U32 motorPort){
 		}
 	}
 	std::cerr << "[ERROR] Invalid port: " << motorPort << "." << std::endl;
+}
+
+F32 HeadingDeg(){
+	return gyro->GetAngle();
+}
+
+F32 HeadingRad(){
+	return gyro->GetAngle() * DEG_TO_RAD;
 }
 
 void UpdateChassis(){

@@ -1,7 +1,9 @@
 #ifndef ELON_PROPERTIES_H
 #define ELON_PROPERTIES_H
 
-#define LOOP_HZ 200.0
+#define LOOP_HZ 50
+#define ACTION_HZ 200
+#define SENSOR_HZ 200
 
 #define CHASSIS_PORT_FL 0
 #define CHASSIS_PORT_BL 1
@@ -11,9 +13,12 @@
 
 #define ELEVATOR_PORT 4
 
+#define GYRO_PORT 0
+
 #define MIN_SPEED (0.30f)
 #define DEF_SPEED (0.65f)
 #define MAX_SPEED (1.00f)
 
+#define GYRO_SENSITIVITY (0.006f)
 
 #endif

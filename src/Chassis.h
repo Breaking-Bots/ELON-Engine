@@ -6,7 +6,7 @@
 /**
  * Initialize chassis and motors
  */
-void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight);
+void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight, U32 gyroPort, U32 gyroSensitivity);
 
 /**
  * Free chassis memory
@@ -50,6 +50,16 @@ void StopMotors();
  * Inverts motor that has been inserted backwards
  */
 void InvertMotor(U32 motorPort);
+
+/**
+ * Returns angle that the robot is facing in degrees
+ */
+F32 HeadingDeg();
+
+/**
+ * Returns angle that the robot is facing in radians
+ */
+F32 HeadingRad();
 
 /**
  * Writes motor values to motor controllers

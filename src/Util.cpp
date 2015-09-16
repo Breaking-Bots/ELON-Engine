@@ -63,3 +63,27 @@ F32 SystemMagnitudeInterpolation(F32 min, F32 mid, F32 max, F32 alpha){
 		return Coserp(mid, max, alpha);
 	}
 }
+
+F32 PrincipalAngleDeg(F32 deg){
+	return deg % 360.0f; //TODO: Test
+}
+
+F32 PrincipalAngleRad(F32 rad){
+	return rad % TAU; //TODO: Test
+}
+
+F32 MinDistAngleDeg(F32 deg){
+	return (deg % 360.0f) - 180.0f; //TODO: Test
+}
+
+F32 MinDistAngleRad(F32 rad){
+	return (rad % TAU) - PI; //TODO: Test
+}
+
+F32 AngularDistDeg(F32 from, F32 to){
+	return MinDistAngleDeg(to - from);
+}
+
+F32 AngularDistRad(F32 from, F32 to){
+	return MinDistAngleRad(to - from);
+}
