@@ -30,6 +30,6 @@ public:
 };
 
 
-void *ActionThread(U32 targetHz);
+I32 ActionThread(...);
 
 #endif

@@ -6,6 +6,9 @@
  */
 #include "WPILib.h"
 #include "Util.h"
+#include "stdarg.h"
+#include "stdio.h"
+#include "HAL/cpp/Synchronized.hpp"
 
 F64 SystemTime(){
 	return GetFPGATime() / 1000.0;
@@ -65,19 +68,19 @@ F32 SystemMagnitudeInterpolation(F32 min, F32 mid, F32 max, F32 alpha){
 }
 
 F32 PrincipalAngleDeg(F32 deg){
-	return deg % 360.0f; //TODO: Test
+	return deg - (I32)(deg/360) * 360; //TODO: Test
 }
 
 F32 PrincipalAngleRad(F32 rad){
-	return rad % TAU; //TODO: Test
+	return rad - (I32)(rad/TAU) * TAU; //TODO: Test
 }
 
 F32 MinDistAngleDeg(F32 deg){
-	return (deg % 360.0f) - 180.0f; //TODO: Test
+	return (deg - (I32)(deg/360) * 360) - 180.0f; //TODO: Test
 }
 
 F32 MinDistAngleRad(F32 rad){
-	return (rad % TAU) - PI; //TODO: Test
+	return (rad - (I32)(rad/TAU) * TAU) - PI; //TODO: Test
 }
 
 F32 AngularDistDeg(F32 from, F32 to){
@@ -86,4 +89,29 @@ F32 AngularDistDeg(F32 from, F32 to){
 
 F32 AngularDistRad(F32 from, F32 to){
 	return MinDistAngleRad(to - from);
+}
+
+
+I32 COUT(char* format, ...){
+	char* fmt = new char[strlen(format) + 9];
+	strcpy(fmt, "[ELON] ");
+	strcpy(fmt + 7, format);
+	strcpy(fmt + strlen(fmt), "\n");
+	va_list args;
+	va_start(args, format);
+	I32 result = vprintf(fmt, args);
+	va_end(args);
+	return result;
+}
+
+I32 CERR(char* format, ...){
+	char* fmt = new char[strlen(format) + 10];
+	strcpy(fmt, "[ERROR] ");
+	strcpy(fmt + 8, format);
+	strcpy(fmt + strlen(fmt), "\n");
+	va_list args;
+	va_start(args, format);
+	I32 result = vprintf(fmt, args);
+	va_end(args);
+	return result;
 }

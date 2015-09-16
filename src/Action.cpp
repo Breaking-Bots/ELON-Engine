@@ -7,14 +7,9 @@
 
 #include "WPILib.h"
 #include "Action.h"
+#include "stdarg.h"
+#include "HAL/cpp/Synchronized.hpp"
 
-Action::Action():isInitialized(FALSE){
-
-}
-
-Action::~Action(){
-
-}
 
 void Action::StartTimer(){
 	startTime = SystemTime();
@@ -30,9 +25,8 @@ B32 Action::Update(F32 dt){
 	return !TerminationCondition();
 }
 
-
-
-void *ActionThread(U32 targetHz){
+I32 ActionThread(...){
+	U32 targetHz = 200;
 	F64 targetMSPerFrame = 1000.0 / targetHz;
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
@@ -48,7 +42,7 @@ void *ActionThread(U32 targetHz){
 			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
 			F64 testMSElapsedForFrame = SystemTime() - lastTime;
 			if(testMSElapsedForFrame > targetMSPerFrame){
-				std::cerr << "[ERROR] Action Thread waited too long." << std::endl;
+				CERR("Action Thread waited too long.");
 			}
 			do{
 				workMSElapsed = SystemTime() - lastTime;
@@ -64,13 +58,14 @@ void *ActionThread(U32 targetHz){
 		F64 Hz = 1000.0/ frameTimeMS;
 
 		//Frame logging
-		//std::cout << "[ELON] Last action frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
+		COUT("Last Action Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
 	}
 
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	std::cout << "[ELON] Total Action Thread time: " << totalMinutes << "m" << totalSeconds << "s." << std::endl;
+	COUT("[ELON] Total Action Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
+	return 0;
 }
 

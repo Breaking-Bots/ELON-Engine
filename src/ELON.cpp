@@ -26,6 +26,7 @@ public:
 	ELON(){
 		//Thread startup
 		actionThread = new Task("ActionThread", ActionThread, 100, KiB(5));
+		actionThread->Start(ACTION_HZ);
 
 		//System startup
 		targetMSPerFrame = 1000.0/LOOP_HZ;
@@ -89,7 +90,7 @@ public:
 				Wait((targetMSPerFrame - workMSElapsed * 1000.0));
 				F64 testMSElapsedForFrame = SystemTime() - lastTime;
 				if(testMSElapsedForFrame > targetMSPerFrame){
-					std::cerr << "[ERROR] Core waited too long." << std::endl;
+					CERR("Core waited too long.");
 				}
 				do{
 					workMSElapsed = SystemTime() - lastTime;
@@ -105,14 +106,14 @@ public:
 			F64 Hz = 1000.0/ frameTimeMS;
 
 			//Frame logging
-			std::cout << "[ELON] Last Core frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
+			COUT("Last Core frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
 		}
 
 		F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 		U32 totalMinutes = totalTimeElapsedSeconds / 60;
 		F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 		//TODO: Log
-		std::cout << "[ELON] Total Teleoperator time: " << totalMinutes << "m" << totalSeconds << "s." << std::endl;
+		COUT("[ELON] Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
 	}
 
 	void Test()
@@ -157,7 +158,7 @@ public:
 				Wait((targetMSPerFrame - workMSElapsed * 1000.0));
 				F64 testMSElapsedForFrame = SystemTime() - lastTime;
 				if(testMSElapsedForFrame > targetMSPerFrame){
-					std::cerr << "[ERROR] Core waited Too Long." << std::endl;
+					CERR("Core waited too long.");
 				}
 				do{
 					workMSElapsed = SystemTime() - lastTime;
@@ -173,14 +174,15 @@ public:
 			F64 Hz = 1000.0/ frameTimeMS;
 
 			//Frame logging
-			std::cout << "[ELON] Last Core frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
+			COUT("Last Core frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
+			//std::cout << "[ELON] Last Core frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
 		}
 
 		F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 		U32 totalMinutes = totalTimeElapsedSeconds / 60;
 		F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 		//TODO: Log
-		std::cout << "[ELON] Total Test time: " << totalMinutes << "m" << totalSeconds << "s." << std::endl;
+		COUT("[ELON] Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
 	}
 
 	void Disabled(){
@@ -188,6 +190,9 @@ public:
 	}
 
 	~ELON(){
+		//Thread shutdown
+		actionThread->Stop();
+
 		//System shutdown
 		TerminateElevator();
 		TerminateChassis();

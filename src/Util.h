@@ -148,4 +148,13 @@ F32 AngularDistDeg(F32 from, F32 to);
  */
 F32 AngularDistRad(F32 from, F32 to);
 
+/**
+ * ELON standard logging
+ */
+I32 COUT(char* format, ...);
+
+/**
+ * ELON error logging
+ */
+I32 CERR(char* format, ...);
 #endif
