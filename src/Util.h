@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cfloat>
 #include <cmath>
+#include <HAL/cpp/Resource.hpp>
+#include <HAL/cpp/Synchronized.hpp>
 
 #define lscope static
 #define glob static
