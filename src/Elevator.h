@@ -1,5 +1,4 @@
-#ifndef ELON_ELEVATOR_H
-#define ELON_ELEVATOR_H
+#pragma once
 
 #include "Util.h"
 
@@ -33,4 +32,3 @@ void InvertElevator();
  */
 void UpdateElevator();
 
-#endif

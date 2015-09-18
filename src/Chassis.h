@@ -1,5 +1,4 @@
-#ifndef ELON_CHASSIS_H
-#define ELON_CHASSIS_H
+#pragma once
 
 #include "Util.h"
 
@@ -66,4 +65,3 @@ F32 HeadingRad();
  */
 void UpdateChassis();
 
-#endif

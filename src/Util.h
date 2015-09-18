@@ -1,5 +1,4 @@
-#ifndef ELON_UTIL_H
-#define ELON_UTIL_H
+#pragma once
 
 #include <cstdint>
 #include <cfloat>
@@ -27,6 +26,9 @@ typedef uint64_t U64;
 
 typedef float F32;
 typedef double F64;
+
+typedef B32 (*B32_FUNCPTR)();
+typedef void (*EXE_FUNCPTR)();
 
 #define I8_MIN INT8_MIN
 #define I16_MIN INT16_MIN
@@ -61,6 +63,8 @@ typedef double F64;
 #define TiB(value) (GiB(value)*1024LL)
 
 #define sizeofArr(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
+#define SYNC(s) for (Synchronized _sync(s), int _mutex_locker_i=0;int _mutex_locker_i < 1; int _mutex_locker_i++)
 
 #define AlignPo2(value, alignment) ((value + ((alignment) - 1)) & ~((alignment) - 1))
 #define Align4(value) ((value + 3) & ~3)
@@ -159,4 +163,3 @@ I32 COUT(char* format, ...);
  * ELON error logging
  */
 I32 CERR(char* format, ...);
-#endif

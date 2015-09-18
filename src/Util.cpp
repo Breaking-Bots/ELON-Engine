@@ -8,7 +8,6 @@
 #include "Util.h"
 #include "stdarg.h"
 #include "stdio.h"
-#include "HAL/cpp/Synchronized.hpp"
 
 F64 SystemTime(){
 	return GetFPGATime() / 1000.0;

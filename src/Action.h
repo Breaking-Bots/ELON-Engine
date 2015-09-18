@@ -1,5 +1,4 @@
-#ifndef ELON_ACTION_H
-#define ELON_ACTION_H
+#pragma once
 
 #include "Util.h"
 
@@ -32,4 +31,3 @@ public:
 
 I32 ActionThread(...);
 
-#endif

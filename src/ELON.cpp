@@ -12,193 +12,131 @@
 #include "Chassis.h"
 #include "Elevator.h"
 #include "Action.h"
+#include "ThreadSpace.h"
+#include "ELON.h"
 
-class ELON: public SampleRobot
-{
 
-F64 targetMSPerFrame;
+ELON* elon;
 
-//TODO: Use pthread.h instead
-Task* actionThread;
+B32 ELON::TeleopRunnerCallback(){
+	return IsOperatorControl() && IsEnabled();
+}
 
-public:
+B32 ELON::TestRunnerCallback(){
+	return IsOperatorControl() && IsEnabled();
+}
 
-	ELON(){
-		//Thread startup
-		actionThread = new Task("ActionThread", ActionThread, 100, KiB(5));
-		actionThread->Start(ACTION_HZ);
+B32 ELON::AutonomousRunnerCallback(){
+	return IsOperatorControl() && IsEnabled();
+}
 
-		//System startup
-		targetMSPerFrame = 1000.0/LOOP_HZ;
+void ELON::TeleopExecutableCallback(){
 
-		//Input initialization
-		InitializeInput(1);
-		SetGamepadPorts(0);
+}
 
-		//Chassis initialization
-		InitializeChassis(CHASSIS_PORTS, GYRO_PORT, GYRO_SENSITIVITY);
+void ELON::TestExecutableCallback(){
+	//Input processing
+	UpdateInput();
+	F32 lx = LX(0);
+	F32 ly = LY(0);
+	F32 rx = RX(0);
+	F32 ry = RY(0);
+	F32 lt = LT(0);
+	F32 rt = RT(0);
 
-		//Elevator initialization
-		InitializeElevator(ELEVATOR_PORT);
-
+	if(START(0)){
+		EnableChassis(TRUE);
+	}else if(BACK(0)){
+		EnableChassis(FALSE);
 	}
 
-	void Autonomous()
-	{
+	ELONDrive(ly, rx);
+	Elevate(RB(0) - LB(0));
 
-	}
+	F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(rt - lt));
 
-	void OperatorControl()
-	{
-		F64 startTime = SystemTime();
-		F64 lastTime = SystemTime();
+	SetChassisMagnitude(chassisMagnitude);
+	SetElevatorMagnitude(chassisMagnitude);
 
-		while(IsOperatorControl() && IsEnabled()){
+	//Updating subsystems
+	UpdateChassis();
+	UpdateElevator();
+}
 
-			//Input processing
-			UpdateInput();
-			F32 lx = LX(0);
-			F32 ly = LY(0);
-			F32 rx = RX(0);
-			F32 ry = RY(0);
-			F32 lt = LT(0);
-			F32 rt = RT(0);
-			//std::cout << "[ELON] " << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
+void ELON::AutonomousExecutableCallback(){
 
-			if(START(0)){
-				EnableChassis(TRUE);
-			}else if(BACK(0)){
-				EnableChassis(FALSE);
-			}
+}
 
-			ELONDrive(ly, rx);
-			Elevate(RB(0) - LB(0));
 
-			F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-			F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(rt - lt));
+ELON::ELON(){
+	//Thread startup
+	InitializeThreadSpace();
+	fastThread = new Task("FastThread", &FastThreadRuntime, 100, KiB(5));
+	fastThread->Start(FAST_THREAD_HZ);
+	StartFastThread();
+	PauseFastThread();
 
-			SetChassisMagnitude(chassisMagnitude);
-			SetElevatorMagnitude(chassisMagnitude);
+	//System startup
 
-			//Updating subsystems
-			UpdateChassis();
-			UpdateElevator();
+	//Input initialization
+	InitializeInput(1);
+	SetGamepadPorts(0);
 
-			//Time processing
-			F64 workMSElapsed = SystemTime() - lastTime;
-			if(workMSElapsed < targetMSPerFrame){
-				Wait((targetMSPerFrame - workMSElapsed * 1000.0));
-				F64 testMSElapsedForFrame = SystemTime() - lastTime;
-				if(testMSElapsedForFrame > targetMSPerFrame){
-					CERR("Core waited too long.");
-				}
-				do{
-					workMSElapsed = SystemTime() - lastTime;
-				} while(workMSElapsed < targetMSPerFrame);
-			}else{
-				//TODO: MISSED FRAME
-				//TODO: Log
-			}
+	//Chassis initialization
+	InitializeChassis(CHASSIS_PORTS, GYRO_PORT, GYRO_SENSITIVITY);
 
-			F64 endTime = SystemTime();
-			F64 frameTimeMS = endTime - lastTime;
-			lastTime = endTime;
-			F64 Hz = 1000.0/ frameTimeMS;
+	//Elevator initialization
+	InitializeElevator(ELEVATOR_PORT);
 
-			//Frame logging
-			COUT("Last Core frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
-		}
+}
 
-		F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-		U32 totalMinutes = totalTimeElapsedSeconds / 60;
-		F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-		//TODO: Log
-		COUT("[ELON] Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
-	}
+void ELON::Autonomous(){
 
-	void Test()
-	{
-		F64 startTime = SystemTime();
-		F64 lastTime = SystemTime();
+}
 
-		while(IsTest() && IsEnabled()){
+void ELON::OperatorControl(){
+	F64 startTime = SystemTime();
 
-			//Input processing
-			UpdateInput();
-			F32 lx = LX(0);
-			F32 ly = LY(0);
-			F32 rx = RX(0);
-			F32 ry = RY(0);
-			F32 lt = LT(0);
-			F32 rt = RT(0);
-			//std::cout << "[ELON] " << lx << "|" << ly << "|"<< rx << "|"<< ry << "|"<< lt << "|"<< rt << "." << std::endl;
 
-			if(START(0)){
-				EnableChassis(TRUE);
-			}else if(BACK(0)){
-				EnableChassis(FALSE);
-			}
 
-			ELONDrive(ly, rx);
-			Elevate(RB(0) - LB(0));
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	COUT("[ELON] Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
+}
 
-			F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-			F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(rt - lt));
+void ELON::Test(){
+	F64 startTime = SystemTime();
+	ResumeFastThread();
 
-			SetChassisMagnitude(chassisMagnitude);
-			SetElevatorMagnitude(chassisMagnitude);
+	CoreThreadRuntime(CORE_THREAD_HZ, &(elon->TestRunnerCallback), &(elon->TestExecutableCallback));
 
-			//Updating subsystems
-			UpdateChassis();
-			UpdateElevator();
+	PauseFastThread();
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	COUT("[ELON] Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
+}
 
-			//Time processing
-			F64 workMSElapsed = SystemTime() - lastTime;
-			if(workMSElapsed < targetMSPerFrame){
-				Wait((targetMSPerFrame - workMSElapsed * 1000.0));
-				F64 testMSElapsedForFrame = SystemTime() - lastTime;
-				if(testMSElapsedForFrame > targetMSPerFrame){
-					CERR("Core waited too long.");
-				}
-				do{
-					workMSElapsed = SystemTime() - lastTime;
-				} while(workMSElapsed < targetMSPerFrame);
-			}else{
-				//TODO: MISSED FRAME
-				//TODO: Log
-			}
+void ELON::Disabled(){
 
-			F64 endTime = SystemTime();
-			F64 frameTimeMS = endTime - lastTime;
-			lastTime = endTime;
-			F64 Hz = 1000.0/ frameTimeMS;
+}
 
-			//Frame logging
-			COUT("Last Core frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
-			//std::cout << "[ELON] Last Core frame time: " << frameTimeMS << "ms (" << Hz << "Hz)." << std::endl;
-		}
+ELON::~ELON(){
+	//Thread shutdown
+	StopFastThread();
+	fastThread->Stop();
+	TerminateThreadSpace();
 
-		F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-		U32 totalMinutes = totalTimeElapsedSeconds / 60;
-		F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-		//TODO: Log
-		COUT("[ELON] Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
-	}
+	//System shutdown
+	TerminateElevator();
+	TerminateChassis();
+	TerminateInput();
+}
 
-	void Disabled(){
-
-	}
-
-	~ELON(){
-		//Thread shutdown
-		actionThread->Stop();
-
-		//System shutdown
-		TerminateElevator();
-		TerminateChassis();
-		TerminateInput();
-	}
-};
 
 I32 main() {
 	if (!HALInitialize()){
@@ -207,7 +145,7 @@ I32 main() {
 	}
 	HALReport(HALUsageReporting::kResourceType_Language, HALUsageReporting::kLanguage_CPlusPlus);
 
-	ELON *elon = new ELON();
+	elon = new ELON();
 	RobotBase::robotSetup(elon);
 	return 0;
 }

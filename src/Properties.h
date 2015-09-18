@@ -1,9 +1,7 @@
-#ifndef ELON_PROPERTIES_H
-#define ELON_PROPERTIES_H
+#pragma once
 
-#define LOOP_HZ 50
-#define ACTION_HZ 200
-#define SENSOR_HZ 200
+#define CORE_THREAD_HZ 50
+#define FAST_THREAD_HZ 200
 
 #define CHASSIS_PORT_FL 0
 #define CHASSIS_PORT_BL 1
@@ -21,4 +19,3 @@
 
 #define GYRO_SENSITIVITY (0.006f)
 
-#endif
