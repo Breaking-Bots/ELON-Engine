@@ -95,28 +95,28 @@ MUTEX_ID loggingLock = initializeMutexNormal();
 
 I32 COUT(char* format, ...){
 	CRITICAL_REGION(loggingLock);
-	char* fmt = new char[strlen(format) + 9];
-	strcpy(fmt, "[ELON] ");
-	strcpy(fmt + 7, format);
-	strcpy(fmt + strlen(fmt), "\n");
-	va_list args;
-	va_start(args, format);
-	I32 result = vprintf(fmt, args);
-	va_end(args);
-	return result;
+		char* fmt = new char[strlen(format) + 9];
+		strcpy(fmt, "[ELON] ");
+		strcpy(fmt + 7, format);
+		strcpy(fmt + strlen(fmt), "\n");
+		va_list args;
+		va_start(args, format);
+		I32 result = vprintf(fmt, args);
+		va_end(args);
+		return result;
 	END_REGION;
 }
 
 I32 CERR(char* format, ...){
 	CRITICAL_REGION(loggingLock);
-	char* fmt = new char[strlen(format) + 10];
-	strcpy(fmt, "[ERROR] ");
-	strcpy(fmt + 8, format);
-	strcpy(fmt + strlen(fmt), "\n");
-	va_list args;
-	va_start(args, format);
-	I32 result = vprintf(fmt, args);
-	va_end(args);
-	return result;
+		char* fmt = new char[strlen(format) + 10];
+		strcpy(fmt, "[ERROR] ");
+		strcpy(fmt + 8, format);
+		strcpy(fmt + strlen(fmt), "\n");
+		va_list args;
+		va_start(args, format);
+		I32 result = vprintf(fmt, args);
+		va_end(args);
+		return result;
 	END_REGION;
 }
