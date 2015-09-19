@@ -58,6 +58,7 @@ I32 FastThreadRuntime(U32 targetHz);
  * runnerCallback is the function provided that returns a B32 that determines whether the thread should run
  * executableCallback is the function provided that has the code that the user requires to be run at the
  * frequency provided
+ * elon is the robot object running
  */
-I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR executableCallback);
+I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR executableCallback, ELON* elon);
 

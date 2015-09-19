@@ -27,8 +27,9 @@ typedef uint64_t U64;
 typedef float F32;
 typedef double F64;
 
-typedef B32 (*B32_FUNCPTR)();
-typedef void (*EXE_FUNCPTR)();
+class ELON;
+typedef B32 (ELON::*B32_FUNCPTR)();
+typedef void (ELON::*EXE_FUNCPTR)();
 
 #define I8_MIN INT8_MIN
 #define I16_MIN INT16_MIN

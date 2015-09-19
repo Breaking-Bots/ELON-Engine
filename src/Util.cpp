@@ -92,11 +92,12 @@ F32 AngularDistRad(F32 from, F32 to){
 
 MUTEX_ID loggingLock = initializeMutexNormal();
 
-I32 COUT(char* format, ...){
+I32 COUT(const std::string& format, ...){
 	CRITICAL_REGION(loggingLock);
-		char* fmt = new char[strlen(format) + 9];
+		const char* formattedCStr = format.c_str();
+		char* fmt = new char[strlen(formattedCStr) + 9];
 		strcpy(fmt, "[ELON] ");
-		strcpy(fmt + 7, format);
+		strcpy(fmt + 7, formattedCStr);
 		strcpy(fmt + strlen(fmt), "\n");
 		va_list args;
 		va_start(args, format);
@@ -106,11 +107,12 @@ I32 COUT(char* format, ...){
 	END_REGION;
 }
 
-I32 CERR(char* format, ...){
+I32 CERR(const std::string& format, ...){
 	CRITICAL_REGION(loggingLock);
-		char* fmt = new char[strlen(format) + 10];
+		const char* formattedCStr = format.c_str();
+		char* fmt = new char[strlen(formattedCStr) + 10];
 		strcpy(fmt, "[ERROR] ");
-		strcpy(fmt + 8, format);
+		strcpy(fmt + 8, formattedCStr);
 		strcpy(fmt + strlen(fmt), "\n");
 		va_list args;
 		va_start(args, format);

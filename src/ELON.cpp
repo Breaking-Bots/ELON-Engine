@@ -72,7 +72,7 @@ void ELON::AutonomousExecutableCallback(){
 ELON::ELON(){
 	//Thread startup
 	InitializeThreadSpace();
-	fastThread = new Task("FastThread", &FastThreadRuntime, 100, KiB(5));
+	fastThread = new Task("FastThread", (FUNCPTR)(&FastThreadRuntime), 100, KiB(5));
 	fastThread->Start(FAST_THREAD_HZ);
 	StartFastThread();
 	PauseFastThread();
@@ -111,7 +111,8 @@ void ELON::Test(){
 	F64 startTime = SystemTime();
 	ResumeFastThread();
 
-	CoreThreadRuntime(CORE_THREAD_HZ, &(elon->TestRunnerCallback), &(elon->TestExecutableCallback));
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::TestRunnerCallback),
+					 (EXE_FUNCPTR)(&ELON::TestExecutableCallback), this);
 
 	PauseFastThread();
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;

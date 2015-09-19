@@ -7,6 +7,7 @@
 
 #include "WPILib.h"
 #include "ThreadSpace.h"
+#include "ELON.h"
 
 MUTEX_ID startedFastThreadLock;
 MUTEX_ID runningFastThreadLock;
@@ -112,13 +113,13 @@ I32 FastThreadRuntime(U32 targetHz){
 	return 0;
 }
 
-I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR executableCallback){
+I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR executableCallback, ELON* elon){
 	F64 targetMSPerFrame = 1000.0 / targetHz;
 	F64 lastTime = SystemTime();
 
-	while((*runnerCallback)){
+	while((elon->*runnerCallback)()){
 		//Executing user function
-		(*executableCallback);
+		(elon->*executableCallback)();
 
 		//Time processing
 		F64 workMSElapsed = SystemTime() - lastTime;
