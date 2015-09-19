@@ -90,7 +90,11 @@ F32 AngularDistRad(F32 from, F32 to){
 	return MinDistAngleRad(to - from);
 }
 
-MUTEX_ID loggingLock = initializeMutexNormal();
+MUTEX_ID loggingLock;
+
+void InitializeLogging(){
+	loggingLock = initializeMutexNormal();
+}
 
 I32 COUT(const std::string& format, ...){
 	CRITICAL_REGION(loggingLock);
@@ -120,4 +124,8 @@ I32 CERR(const std::string& format, ...){
 		va_end(args);
 		return result;
 	END_REGION;
+}
+
+void TerminateLogging(){
+	deleteMutex(loggingLock);
 }
