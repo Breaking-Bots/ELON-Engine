@@ -8,9 +8,44 @@
 #include "WPILib.h"
 #include "Action.h"
 #include "Util.h"
+#include "ThreadSpace.h"
+
+Action::Action(){
+
+}
+
+Action::~Action(){
+
+}
+
+B32 Action::IsCanceled() const{
+	return isCanceled;
+}
+
+B32 Action::IsRunning() const{
+	return isRunning;
+}
+
+void Action::StartActionFromFastThread() {
+	isRunning = TRUE;
+	startTime = -1;
+}
 
 void Action::StartTimer(){
 	startTime = SystemTime();
+}
+
+void Action::Removed(){
+	if(isInitialized){
+		if(isCanceled){
+			Interupted();
+		}else{
+			Terminate();
+		}
+	}
+	isInitialized = FALSE;
+	isCanceled = FALSE;
+	isRunning = FALSE;
 }
 
 B32 Action::Update(F32 dt){
@@ -23,47 +58,11 @@ B32 Action::Update(F32 dt){
 	return !TerminationCondition();
 }
 
-I32 ActionThread(...){
-	U32 targetHz = 200;
-	F64 targetMSPerFrame = 1000.0 / targetHz;
-	F64 startTime = SystemTime();
-	F64 lastTime = SystemTime();
+void StartChassisAction(Action* action){
+	BufferChassisAction(action);
+}
 
-	while(TRUE){
-		//Processing commands
-
-		//Updating subsystems
-
-		//Time processing
-		F64 workMSElapsed = SystemTime() - lastTime;
-		if(workMSElapsed < targetMSPerFrame){
-			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
-			F64 testMSElapsedForFrame = SystemTime() - lastTime;
-			if(testMSElapsedForFrame > targetMSPerFrame){
-				CERR("Action Thread waited too long.");
-			}
-			do{
-				workMSElapsed = SystemTime() - lastTime;
-			} while(workMSElapsed < targetMSPerFrame);
-		}else{
-			//TODO: MISSED FRAME
-			//TODO: Log
-		}
-
-		F64 endTime = SystemTime();
-		F64 frameTimeMS = endTime - lastTime;
-		lastTime = endTime;
-		F64 Hz = 1000.0/ frameTimeMS;
-
-		//Frame logging
-		COUT("Last Action Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
-	}
-
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	COUT("[ELON] Total Action Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
-	return 0;
+void StartElevatorAction(Action* action){
+	BufferElevatorAction(action);
 }
 

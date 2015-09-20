@@ -2,6 +2,9 @@
 
 #include "Util.h"
 
+//Forward declaration of action class
+class Action;
+
 /**
  * Initialize the thread space
  */
@@ -47,6 +50,34 @@ void StartFastThread();
  * Thread safe
  */
 void StopFastThread();
+
+/**
+ * Add an object to the chassis action buffer
+ * Thread safe
+ */
+void BufferChassisAction(Action* action);
+
+/**
+ * Add an object to the elevator action buffer
+ * Thread safe
+ */
+void BufferElevatorAction(Action* action);
+
+/**
+ * Removes action from chassis' queue of actions
+ */
+void RemoveChassisAction(Action* action);
+
+/**
+ * Removes action from elevator's queue of actions
+ */
+void RemoveElevatorAction(Action* action);
+
+/**
+ * Executes actions in queues and adds the buffered actions to global queues
+ * Thread safe
+ */
+void ExecuteActionQueues(F32 dt);
 
 /**
  * Function callback for running the fast thread runtime on a separate thread

@@ -54,10 +54,10 @@ void ELON::TestExecutableCallback(){
 	Elevate(RB(0) - LB(0));
 
 	F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-	F32 elevatorMagnitude = Coserp(DEF_SPEED, MAX_SPEED, NormalizeAlpha(rt - lt));
+	F32 elevatorMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 
 	SetChassisMagnitude(chassisMagnitude);
-	SetElevatorMagnitude(chassisMagnitude);
+	SetElevatorMagnitude(elevatorMagnitude);
 
 	//Updating subsystems
 	UpdateChassis();

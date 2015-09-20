@@ -7,62 +7,189 @@
 
 #include "WPILib.h"
 #include "ThreadSpace.h"
+#include "Util.h"
 #include "ELON.h"
+#include "Action.h"
+#include <set>
+#include <vector>
+#include <queue>
+#include <algorithm>
 
 MUTEX_ID startedFastThreadLock;
 MUTEX_ID runningFastThreadLock;
+MUTEX_ID chassisBufferLock;
+MUTEX_ID elevatorBufferLock;
 
 B32 isFastThreadStarted;
 B32 isFastThreadRunning;
+typedef std::vector<Action*> ActionVector;
+typedef std::vector<Action*>::const_iterator ActionBufferIterator;
+typedef std::queue<Action*> ActionQueue;
+typedef std::set<Action*> ActionSet;
+typedef std::set<Action*>::const_iterator ActionSetIterator;
+typedef std::set<Action*>::iterator ActionSetIndex;
 
+ActionVector chassisActionBuffer;
+ActionVector elevatorActionBuffer;
+ActionQueue chassisActionQueue;
+ActionSet chassisActionSet;
+ActionQueue elevatorActionQueue;
+ActionSet elevatorActionSet;
 
 void InitializeThreadSpace(){
 	startedFastThreadLock = initializeMutexNormal();
 	runningFastThreadLock = initializeMutexNormal();
-	isFastThreadStarted = true;
-	isFastThreadRunning = true;
+	chassisBufferLock = initializeMutexNormal();
+	elevatorBufferLock = initializeMutexNormal();
+	isFastThreadStarted = TRUE;
+	isFastThreadRunning = TRUE;
 }
 
 void TerminateThreadSpace(){
-	isFastThreadStarted = false;
-	isFastThreadRunning = false;
+	isFastThreadStarted = FALSE;
+	isFastThreadRunning = FALSE;
+	takeMutex(elevatorBufferLock);
+	deleteMutex(elevatorBufferLock);
+	takeMutex(chassisBufferLock);
+	deleteMutex(chassisBufferLock);
+	takeMutex(runningFastThreadLock);
 	deleteMutex(runningFastThreadLock);
+	takeMutex(startedFastThreadLock);
 	deleteMutex(startedFastThreadLock);
 }
 
 B32 IsFastThreadStarted(){
-	CRITICAL_REGION(startedFastThreadLock)
+	CRITICAL_REGION(startedFastThreadLock);
 		return isFastThreadStarted;
 	END_REGION;
 }
 
 B32 IsFastThreadRunning(){
-	CRITICAL_REGION(runningFastThreadLock)
+	CRITICAL_REGION(runningFastThreadLock);
 		return isFastThreadRunning;
 	END_REGION;
 }
 
 void PauseFastThread(){
-	CRITICAL_REGION(runningFastThreadLock)
+	CRITICAL_REGION(runningFastThreadLock);
 		isFastThreadRunning = FALSE;
 	END_REGION;
 }
 
 void ResumeFastThread(){
-	CRITICAL_REGION(runningFastThreadLock)
+	CRITICAL_REGION(runningFastThreadLock);
 		isFastThreadRunning = TRUE;
 	END_REGION;
 }
 
 void StartFastThread(){
-	CRITICAL_REGION(startedFastThreadLock)
+	CRITICAL_REGION(startedFastThreadLock);
 		isFastThreadStarted = TRUE;
 	END_REGION;
 }
 
 void StopFastThread(){
-	CRITICAL_REGION(startedFastThreadLock)
+	CRITICAL_REGION(startedFastThreadLock);
 		isFastThreadStarted = FALSE;
+	END_REGION;
+}
+
+void BufferChassisAction(Action* action){
+	CRITICAL_REGION(chassisBufferLock);
+		if(std::find(chassisActionBuffer.begin(), chassisActionBuffer.end(), action) != chassisActionBuffer.end()){
+			return;
+		}
+		chassisActionBuffer.push_back(action);
+	END_REGION;
+}
+
+void BufferElevatorAction(Action* action){
+	CRITICAL_REGION(elevatorBufferLock);
+		if(std::find(elevatorActionBuffer.begin(), elevatorActionBuffer.end(), action) != elevatorActionBuffer.end()){
+			return;
+		}
+		elevatorActionBuffer.push_back(action);
+	END_REGION;
+}
+
+void RemoveChassisAction(Action* action){
+	if(!action){
+		return;
+	}
+
+	if(!chassisActionSet.erase(action)){
+		return;
+	}
+
+	chassisActionQueue.pop();
+	action->Removed();
+}
+
+void RemoveElevatorAction(Action* action){
+	if(!action){
+		return;
+	}
+
+	if(!elevatorActionSet.erase(action)){
+		return;
+	}
+
+	elevatorActionQueue.pop();
+	action->Removed();
+}
+
+intern void HandleChassisBufferAdditions(Action* action){
+	if(!action){
+		return;
+	}
+
+	ActionSetIndex found = chassisActionSet.find(action);
+	if(found == chassisActionSet.end()){
+		chassisActionSet.insert(action);
+		chassisActionQueue.push(action);
+		action->StartActionFromFastThread();
+	}
+
+}
+
+intern void HandleElevatorBufferAdditions(Action* action){
+	if(!action){
+		return;
+	}
+
+	ActionSetIndex found = elevatorActionSet.find(action);
+	if(found == elevatorActionSet.end()){
+		elevatorActionSet.insert(action);
+		elevatorActionQueue.push(action);
+		action->StartActionFromFastThread();
+	}
+
+}
+
+void ExecuteActionQueues(F32 dt){
+
+	Action* chassisAction = chassisActionQueue.front();
+	if(!(chassisAction->Update(dt))){
+		RemoveChassisAction(chassisAction);
+	}
+
+	Action* elevatorAction = elevatorActionQueue.front();
+	if(!(elevatorAction->Update(dt))){
+		RemoveElevatorAction(elevatorAction);
+	}
+
+	CRITICAL_REGION(chassisBufferLock);
+		for(ActionBufferIterator i = chassisActionBuffer.begin(); i != chassisActionBuffer.end(); i++){
+			HandleChassisBufferAdditions(*i);
+		}
+		chassisActionBuffer.clear();
+	END_REGION;
+
+	CRITICAL_REGION(elevatorBufferLock);
+		for(ActionBufferIterator i = elevatorActionBuffer.begin(); i != elevatorActionBuffer.end(); i++){
+			HandleElevatorBufferAdditions(*i);
+		}
+		elevatorActionBuffer.clear();
 	END_REGION;
 }
 
@@ -73,7 +200,8 @@ I32 FastThreadRuntime(U32 targetHz){
 
 	while(IsFastThreadStarted()){
 		if(IsFastThreadRunning()){
-			//Processing commands
+			//Processing actions
+
 
 			//Updating subsystems
 

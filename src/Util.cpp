@@ -127,5 +127,6 @@ I32 CERR(const std::string& format, ...){
 }
 
 void TerminateLogging(){
+	takeMutex(loggingLock);
 	deleteMutex(loggingLock);
 }
