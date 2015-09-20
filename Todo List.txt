@@ -1,8 +1,10 @@
 - Button Queue
-- Action Queue
++ Action Queue
 - Convert globalActionBuffers to a const-sized buffer
-- Add button states
++ Add button states
 - Button that cancels action
 - Concurrent actions
 - Timed actions
 - Action - subsystem safety checks
+- Function that removes all actions
+- Unabstract gamepad struct

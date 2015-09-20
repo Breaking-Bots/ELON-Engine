@@ -44,6 +44,17 @@ struct Gamepad{
 			U32 start : 1;
 			U32 l3 : 1;
 			U32 r3 : 1;
+			U32 padding : 6;
+			U32 _a : 1;
+			U32 _b : 1;
+			U32 _x : 1;
+			U32 _y : 1;
+			U32 _lb : 1;
+			U32 _rb : 1;
+			U32 _back : 1;
+			U32 _start : 1;
+			U32 _l3 : 1;
+			U32 _r3 : 1;
 		};
 	};
 	I32 dpad;
@@ -193,6 +204,186 @@ B32 R3(U32 gamepadPort){
 	return 0; //TODO: controller doesn't exist
 }
 
+B32 ATapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].a && !gamepads[i]._a;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 BTapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].b && !gamepads[i]._b;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 XTapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].x && !gamepads[i]._x;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 YTapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].y && !gamepads[i]._y;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 LBTapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].lb && !gamepads[i]._lb;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 RBTapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].rb && !gamepads[i]._rb;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 BACKTapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].back && !gamepads[i]._back;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 STARTTapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].start && !gamepads[i]._start;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 L3Tapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].l3 && !gamepads[i]._l3;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 R3Tapped(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].r3 && !gamepads[i]._r3;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 AReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return !gamepads[i].a && gamepads[i]._a;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 BReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].b && gamepads[i]._b;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 XReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].x && gamepads[i]._x;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 YReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].y && gamepads[i]._y;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 LBReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].lb && gamepads[i]._lb;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 RBReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].rb && gamepads[i]._rb;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 BACKReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].back && gamepads[i]._back;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 STARTReleased(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].start && gamepads[i]._start;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 L3Released(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].l3 && gamepads[i]._l3;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
+B32 R3Released(U32 gamepadPort){
+	for(U32 i = 0; i < nGamepads; i++){
+		if(gamepadPorts[i] == gamepadPort){
+			return gamepads[i].r3 && gamepads[i]._r3;
+		}
+	}
+	return 0; //TODO: controller doesn't exist
+}
+
 F32 LX(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
@@ -276,6 +467,7 @@ void SetInputType(U32 gamepadPort, InputType inputType){
 
 void UpdateInput(){
 	for(U32 i = 0; i < nGamepads; i++){
+		gamepads[i].buttons |= gamepads[i].buttons << 16;
 		gamepads[i].buttons = ds->GetStickButtons(gamepadPorts[i]);
 
 		//Circular deadzone processing of left joystick
