@@ -42,6 +42,11 @@ void SetChassisMagnitude(F32 magnitude);
 void EnableChassis(B32 enable);
 
 /**
+ * Returns whether or not the chassis is enabled
+ */
+B32 IsChassisEnabled();
+
+/**
  * Stops all motors
  */
 void StopMotors();

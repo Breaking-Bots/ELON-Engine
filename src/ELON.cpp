@@ -39,11 +39,10 @@ void TestExecutableCallback(ELONMemory* memory){
 	F32 lt = LT(0);
 	F32 rt = RT(0);
 
-	if(START(0)){
-		EnableChassis(TRUE);
-	}else if(BACK(0)){
-		EnableChassis(FALSE);
+	if(STARTTapped(0)){
+		EnableChassis(!IsChassisEnabled());
 	}
+	//COUT("%u", DecToBin(Buttons(0)));
 
 	ELONDrive(ly, rx);
 	Elevate(RB(0) - LB(0));
@@ -65,19 +64,25 @@ void AutonomousExecutableCallback(ELONMemory* memory){
 
 
 ELON::ELON(){
-
-}
-
-void ELON::RobotInit(){
+	COUT("Initializing");
 	//Memory startup
-	elonMemory = scast<ELONMemory*>(malloc(sizeof(ELONMemory)));
-	*elonMemory = {};
-	elonMemory->permanentStorageSize = ELON_PERMANENT_STORAGE_SIZE;
-	elonMemory->permanentStorage = malloc(elonMemory->permanentStorageSize);
-	memset(elonMemory->permanentStorage, 0, elonMemory->permanentStorageSize);
-	elonMemory->transientStorageSize = ELON_TRANSIENT_STORAGE_SIZE;
-	elonMemory->transientStorage = malloc(elonMemory->transientStorageSize);
-	memset(elonMemory->transientStorage, 0, elonMemory->transientStorageSize);
+	elonMemory = {};
+	elonMemory.permanentStorageSize = ELON_PERMANENT_STORAGE_SIZE;
+	elonMemory.permanentStorage = malloc(elonMemory.permanentStorageSize);
+	if(elonMemory.permanentStorage){
+		COUT("Permanent memory successfully allocated with size of %u Bytes", ELON_PERMANENT_STORAGE_SIZE);
+	}else{
+		CERR("Permanent memory allocation failed with size of %u Bytes", ELON_PERMANENT_STORAGE_SIZE);
+	}
+	memset(elonMemory.permanentStorage, 0, elonMemory.permanentStorageSize);
+	elonMemory.transientStorageSize = ELON_TRANSIENT_STORAGE_SIZE;
+	elonMemory.transientStorage = malloc(elonMemory.transientStorageSize);
+	if(elonMemory.transientStorage){
+		COUT("Transient memory successfully allocated with size of %u Bytes", ELON_TRANSIENT_STORAGE_SIZE);
+	}else{
+		CERR("Transient memory allocation failed with size of %u Bytes", ELON_TRANSIENT_STORAGE_SIZE);
+	}
+	memset(elonMemory.transientStorage, 0, elonMemory.transientStorageSize);
 
 	//Thread startup
 	InitializeThreadSpace();
@@ -85,6 +90,9 @@ void ELON::RobotInit(){
 	fastThread->Start(FAST_THREAD_HZ);
 	StartFastThread();
 	PauseFastThread();
+}
+
+void ELON::RobotInit(){
 
 	//System startup
 
@@ -111,7 +119,7 @@ void ELON::Autonomous(){
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("[ELON] Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
+	COUT("Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 void ELON::OperatorControl(){
@@ -122,11 +130,11 @@ void ELON::OperatorControl(){
 					 (EXE_FUNCPTR)(&TeleopExecutableCallback), this);
 
 	PauseFastThread();
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) / 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("[ELON] Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
+	COUT("Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 void ELON::Test(){
@@ -141,7 +149,7 @@ void ELON::Test(){
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("[ELON] Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
+	COUT("Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 void ELON::Disabled(){
@@ -160,15 +168,18 @@ ELON::~ELON(){
 	TerminateThreadSpace();
 
 	//Memory shutdown
-	free(elonMemory->transientStorage);
-	free(elonMemory->permanentStorage);
-	free(elonMemory);
+	free(elonMemory.transientStorage);
+	free(elonMemory.permanentStorage);
+
+	//Logging shutdown
 }
 
 
 I32 main() {
+	//Loggign startup
+	InitializeLogging();
 	if (!HALInitialize()){
-		std::cerr<<"[ERROR] HAL could not be initialized."<<std::endl;
+		CERR("HAL could not be initialized.");
 		return -1;
 	}
 	HALReport(HALUsageReporting::kResourceType_Language, HALUsageReporting::kLanguage_CPlusPlus);

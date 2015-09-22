@@ -158,6 +158,16 @@ F32 AngularDistDeg(F32 from, F32 to);
 F32 AngularDistRad(F32 from, F32 to);
 
 /**
+ * Quick powers of 10
+ */
+U64 Pow10(U32 exponent);
+
+/**
+ * Decimal to binary converter
+ */
+U64 DecToBin(U32 dec);
+
+/**
  * Initialize logging
  */
 void InitializeLogging();

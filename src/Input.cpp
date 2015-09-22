@@ -82,7 +82,7 @@ void SetGamepadPorts(U32 primary){
 	if(nGamepads == 1){
 		gamepadPorts[0] = primary;
 	}else{
-		std::cerr << "[ERROR] Amount of gamepad ports do not match number of gamepads: " << nGamepads << "." << std::endl;
+		CERR("Amount of gamepad ports do not match number of gamepads: %d", nGamepads);
 	}
 }
 
@@ -91,7 +91,7 @@ void SetGamepadPorts(U32 primary, U32 secondary){
 		gamepadPorts[0] = primary;
 		gamepadPorts[1] = secondary;
 	}else{
-		std::cerr << "[ERROR] Amount of gamepad ports do not match number of gamepads: " << nGamepads << "." << std::endl;
+		CERR("Amount of gamepad ports do not match number of gamepads: %d", nGamepads);
 	}
 }
 
@@ -306,7 +306,7 @@ B32 AReleased(U32 gamepadPort){
 B32 BReleased(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].b && gamepads[i]._b;
+			return !gamepads[i].b && gamepads[i]._b;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -315,7 +315,7 @@ B32 BReleased(U32 gamepadPort){
 B32 XReleased(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].x && gamepads[i]._x;
+			return !gamepads[i].x && gamepads[i]._x;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -324,7 +324,7 @@ B32 XReleased(U32 gamepadPort){
 B32 YReleased(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].y && gamepads[i]._y;
+			return !gamepads[i].y && gamepads[i]._y;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -333,7 +333,7 @@ B32 YReleased(U32 gamepadPort){
 B32 LBReleased(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].lb && gamepads[i]._lb;
+			return !gamepads[i].lb && gamepads[i]._lb;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -342,7 +342,7 @@ B32 LBReleased(U32 gamepadPort){
 B32 RBReleased(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].rb && gamepads[i]._rb;
+			return !gamepads[i].rb && gamepads[i]._rb;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -351,7 +351,7 @@ B32 RBReleased(U32 gamepadPort){
 B32 BACKReleased(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].back && gamepads[i]._back;
+			return !gamepads[i].back && gamepads[i]._back;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -360,7 +360,7 @@ B32 BACKReleased(U32 gamepadPort){
 B32 STARTReleased(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].start && gamepads[i]._start;
+			return !gamepads[i].start && gamepads[i]._start;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -369,7 +369,7 @@ B32 STARTReleased(U32 gamepadPort){
 B32 L3Released(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].l3 && gamepads[i]._l3;
+			return !gamepads[i].l3 && gamepads[i]._l3;
 		}
 	}
 	return 0; //TODO: controller doesn't exist
@@ -378,7 +378,7 @@ B32 L3Released(U32 gamepadPort){
 B32 R3Released(U32 gamepadPort){
 	for(U32 i = 0; i < nGamepads; i++){
 		if(gamepadPorts[i] == gamepadPort){
-			return gamepads[i].r3 && gamepads[i]._r3;
+			return !gamepads[i].r3 && gamepads[i]._r3;
 		}
 	}
 	return 0; //TODO: controller doesn't exist

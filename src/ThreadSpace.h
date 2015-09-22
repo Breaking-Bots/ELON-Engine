@@ -3,8 +3,9 @@
 
 #include "Util.h"
 
-//Forward declaration of action class
+//Forward declaration
 class Action;
+class ELON;
 
 /**
  * Initialize the thread space

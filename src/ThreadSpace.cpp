@@ -170,13 +170,19 @@ intern void HandleElevatorBufferAdditions(Action* action){
 void ExecuteActionQueues(F32 dt){
 
 	Action* chassisAction = chassisActionQueue.front();
-	if(!(chassisAction->Update(dt))){
-		RemoveChassisAction(chassisAction);
+	if(!(chassisActionQueue.empty())){
+		if(!(chassisAction->Update(dt))){
+			RemoveChassisAction(chassisAction);
+		}
+	}else{
 	}
 
 	Action* elevatorAction = elevatorActionQueue.front();
-	if(!(elevatorAction->Update(dt))){
-		RemoveElevatorAction(elevatorAction);
+	if(!(elevatorActionQueue.empty())){
+		if(!(elevatorAction->Update(dt))){
+			RemoveElevatorAction(elevatorAction);
+		}
+	}else{
 	}
 
 	CRITICAL_REGION(chassisBufferLock);
@@ -231,7 +237,7 @@ I32 FastThreadRuntime(U32 targetHz){
 		F64 Hz = 1000.0/ frameTimeMS;
 
 		//Frame logging
-		COUT("Last Fast Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
+		//COUT("Last Fast Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
 	}
 
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
@@ -245,13 +251,11 @@ I32 FastThreadRuntime(U32 targetHz){
 I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR executableCallback, ELON* elon){
 	F64 targetMSPerFrame = 1000.0 / targetHz;
 	F64 lastTime = SystemTime();
-
 	while((elon->*runnerCallback)() && elon->IsEnabled()){
 		//Update Input
 		UpdateInput();
-
 		//Executing user function
-		(*executableCallback)(elon->elonMemory);
+		(*executableCallback)(&(elon->elonMemory));
 
 		//Time processing
 		F64 workMSElapsed = SystemTime() - lastTime;
@@ -268,6 +272,7 @@ I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR exec
 		}else{
 			//TODO: MISSED FRAME
 			//TODO: Log
+			COUT("Missed last Core Thread frame.");
 		}
 
 		F64 endTime = SystemTime();
@@ -276,7 +281,7 @@ I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR exec
 		F64 Hz = 1000.0/ frameTimeMS;
 
 		//Frame logging
-		COUT("Last Core Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
+		//COUT("Last Core Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
 	}
 	return 0;
 }
