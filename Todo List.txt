@@ -1,3 +1,4 @@
+- Dynamic Linking to Code
 - Button Queue
 + Action Queue
 - Convert globalActionBuffers to a const-sized buffer
@@ -8,3 +9,6 @@
 - Action - subsystem safety checks
 - Function that removes all actions
 - Unabstract gamepad struct
+- Record input
+- Live loop editing
+- ELONMemory as only allocation

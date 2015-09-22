@@ -1,17 +1,19 @@
 Filename , LOC 
-Action.cpp , 53 
-Action.h , 83 
+Actions.cpp , 56 
+Actions.h , 90 
 Chassis.cpp , 145 
-Chassis.h , 53 
+Chassis.h , 55 
 Elevator.cpp , 34 
-Elevator.h , 26 
-ELON.cpp , 113 
+Elevator.h , 28 
+ELON.cpp , 139 
 ELON.h , 18 
 Input.cpp , 505 
-Input.h , 185 
-Properties.h , 14 
-ThreadSpace.cpp , 233 
-ThreadSpace.h , 77 
+Input.h , 187 
+Memory.cpp , 8 
+Memory.h , 15 
+Properties.h , 18 
+ThreadSpace.cpp , 237 
+ThreadSpace.h , 79 
 Util.cpp , 103 
-Util.h , 143 
-Grand Total , 1785  
+Util.h , 146 
+Grand Total , 1863  

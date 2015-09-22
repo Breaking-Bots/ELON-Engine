@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ELON_UTIL_H
+#define ELON_UTIL_H
 
 #include <cstdint>
 #include <cfloat>
@@ -28,8 +29,9 @@ typedef float F32;
 typedef double F64;
 
 class ELON;
+struct ELONMemory;
 typedef B32 (ELON::*B32_FUNCPTR)();
-typedef void (ELON::*EXE_FUNCPTR)();
+typedef void (*EXE_FUNCPTR)(ELONMemory*);
 
 #define I8_MIN INT8_MIN
 #define I16_MIN INT16_MIN
@@ -174,3 +176,5 @@ I32 CERR(const std::string& format, ...);
  * Terminate logging
  */
 void TerminateLogging();
+
+#endif

@@ -1,4 +1,9 @@
-#pragma once
+#ifndef ELON_H
+#define ELON_H
+
+#include "Util.h"
+
+struct ELONMemory;
 
 class ELON: public SampleRobot
 {
@@ -6,20 +11,11 @@ class ELON: public SampleRobot
 Task* fastThread;
 
 public:
-	B32 TeleopRunnerCallback();
-
-	B32 TestRunnerCallback();
-
-	B32 AutonomousRunnerCallback();
-
-	void TeleopExecutableCallback();
-
-	void TestExecutableCallback();
-
-	void AutonomousExecutableCallback();
-
+ELONMemory* elonMemory;
 
 	ELON();
+
+	void RobotInit();
 
 	void Autonomous();
 
@@ -31,3 +27,5 @@ public:
 
 	~ELON();
 };
+
+#endif

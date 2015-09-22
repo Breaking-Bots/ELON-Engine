@@ -11,32 +11,27 @@
 #include "Properties.h"
 #include "Chassis.h"
 #include "Elevator.h"
-#include "Action.h"
+#include "Actions.h"
 #include "ThreadSpace.h"
+#include "Memory.h"
 #include "ELON.h"
 
 
 ELON* elon;
 
-B32 ELON::TeleopRunnerCallback(){
-	return IsOperatorControl() && IsEnabled();
-}
-
-B32 ELON::TestRunnerCallback(){
-	return IsOperatorControl() && IsEnabled();
-}
-
-B32 ELON::AutonomousRunnerCallback(){
-	return IsOperatorControl() && IsEnabled();
-}
-
-void ELON::TeleopExecutableCallback(){
+void TeleopExecutableCallback(ELONMemory* memory){
 
 }
 
-void ELON::TestExecutableCallback(){
+void TestExecutableCallback(ELONMemory* memory){
+	ELONState* state = (ELONState*)memory->permanentStorage;
+	if(!memory->isInitialized){
+		state->chassisMagnitude = DEF_SPEED;
+		state->elevatorMagnitude = DEF_SPEED;
+		memory->isInitialized = TRUE;
+	}
+
 	//Input processing
-	UpdateInput();
 	F32 lx = LX(0);
 	F32 ly = LY(0);
 	F32 rx = RX(0);
@@ -53,23 +48,37 @@ void ELON::TestExecutableCallback(){
 	ELONDrive(ly, rx);
 	Elevate(RB(0) - LB(0));
 
-	F32 chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-	F32 elevatorMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->elevatorMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 
-	SetChassisMagnitude(chassisMagnitude);
-	SetElevatorMagnitude(elevatorMagnitude);
+	SetChassisMagnitude(state->chassisMagnitude);
+	SetElevatorMagnitude(state->elevatorMagnitude);
 
 	//Updating subsystems
 	UpdateChassis();
 	UpdateElevator();
 }
 
-void ELON::AutonomousExecutableCallback(){
+void AutonomousExecutableCallback(ELONMemory* memory){
 
 }
 
 
 ELON::ELON(){
+
+}
+
+void ELON::RobotInit(){
+	//Memory startup
+	elonMemory = scast<ELONMemory*>(malloc(sizeof(ELONMemory)));
+	*elonMemory = {};
+	elonMemory->permanentStorageSize = ELON_PERMANENT_STORAGE_SIZE;
+	elonMemory->permanentStorage = malloc(elonMemory->permanentStorageSize);
+	memset(elonMemory->permanentStorage, 0, elonMemory->permanentStorageSize);
+	elonMemory->transientStorageSize = ELON_TRANSIENT_STORAGE_SIZE;
+	elonMemory->transientStorage = malloc(elonMemory->transientStorageSize);
+	memset(elonMemory->transientStorage, 0, elonMemory->transientStorageSize);
+
 	//Thread startup
 	InitializeThreadSpace();
 	fastThread = new Task("FastThread", (FUNCPTR)(&FastThreadRuntime), 100, KiB(5));
@@ -88,18 +97,31 @@ ELON::ELON(){
 
 	//Elevator initialization
 	InitializeElevator(ELEVATOR_PORT);
-
 }
 
 void ELON::Autonomous(){
+	F64 startTime = SystemTime();
+	ResumeFastThread();
 
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsAutonomous),
+					 (EXE_FUNCPTR)(&AutonomousExecutableCallback), this);
+
+	PauseFastThread();
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	COUT("[ELON] Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 void ELON::OperatorControl(){
 	F64 startTime = SystemTime();
+	ResumeFastThread();
 
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsOperatorControl),
+					 (EXE_FUNCPTR)(&TeleopExecutableCallback), this);
 
-
+	PauseFastThread();
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
@@ -111,8 +133,8 @@ void ELON::Test(){
 	F64 startTime = SystemTime();
 	ResumeFastThread();
 
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::TestRunnerCallback),
-					 (EXE_FUNCPTR)(&ELON::TestExecutableCallback), this);
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
+					 (EXE_FUNCPTR)(&TestExecutableCallback), this);
 
 	PauseFastThread();
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
@@ -127,15 +149,20 @@ void ELON::Disabled(){
 }
 
 ELON::~ELON(){
+	//System shutdown
+	TerminateElevator();
+	TerminateChassis();
+	TerminateInput();
+
 	//Thread shutdown
 	StopFastThread();
 	fastThread->Stop();
 	TerminateThreadSpace();
 
-	//System shutdown
-	TerminateElevator();
-	TerminateChassis();
-	TerminateInput();
+	//Memory shutdown
+	free(elonMemory->transientStorage);
+	free(elonMemory->permanentStorage);
+	free(elonMemory);
 }
 
 

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ELON_THREAD_SPACE_H
+#define ELON_THREAD_SPACE_H
 
 #include "Util.h"
 
@@ -93,3 +94,4 @@ I32 FastThreadRuntime(U32 targetHz);
  */
 I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR executableCallback, ELON* elon);
 
+#endif

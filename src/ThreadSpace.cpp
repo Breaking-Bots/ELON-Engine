@@ -9,7 +9,8 @@
 #include "ThreadSpace.h"
 #include "Util.h"
 #include "ELON.h"
-#include "Action.h"
+#include "Actions.h"
+#include "Input.h"
 #include <set>
 #include <vector>
 #include <queue>
@@ -201,7 +202,7 @@ I32 FastThreadRuntime(U32 targetHz){
 	while(IsFastThreadStarted()){
 		if(IsFastThreadRunning()){
 			//Processing actions
-
+			ExecuteActionQueues(targetMSPerFrame);
 
 			//Updating subsystems
 
@@ -245,9 +246,12 @@ I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR exec
 	F64 targetMSPerFrame = 1000.0 / targetHz;
 	F64 lastTime = SystemTime();
 
-	while((elon->*runnerCallback)()){
+	while((elon->*runnerCallback)() && elon->IsEnabled()){
+		//Update Input
+		UpdateInput();
+
 		//Executing user function
-		(elon->*executableCallback)();
+		(*executableCallback)(elon->elonMemory);
 
 		//Time processing
 		F64 workMSElapsed = SystemTime() - lastTime;

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ELON_INPUT_H
+#define ELON_INPUT_H
 
 #include "Util.h"
 
@@ -229,3 +230,5 @@ void SetInputType(U32 gamepadPort, InputType inputType);
  */
 void UpdateInput();
 
+
+#endif

@@ -6,16 +6,20 @@
  */
 
 #include "WPILib.h"
-#include "Action.h"
+#include "Actions.h"
 #include "Util.h"
 #include "ThreadSpace.h"
 
-Action::Action(){
+Action::Action(F64 timeout):timeout(timeout){
 
 }
 
 Action::~Action(){
 
+}
+
+B32 Action::IsTimedOut() const{
+	return SystemTime() - startTime >= timeout;
 }
 
 B32 Action::IsCanceled() const{
@@ -55,7 +59,7 @@ B32 Action::Update(F32 dt){
 	}
 
 	Execute(dt);
-	return !TerminationCondition();
+	return !TerminationCondition() || IsTimedOut();
 }
 
 void StartChassisAction(Action* action){

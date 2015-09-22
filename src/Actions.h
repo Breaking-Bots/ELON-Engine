@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ELON_ACTIONS_H
+#define ELON_ACTIONS_H
 
 #include "Util.h"
 
@@ -12,13 +13,13 @@ class Action{
 	B32 isRunning = FALSE;
 	B32 isInitialized = FALSE;
 	B32 isCanceled = FALSE;
-
+	F64 timeout = F64_MAX;
 public:
 
 	/**
-	 * Action constructor
+	 * Action constructor, takes in timeout
 	 */
-	Action();
+	Action(F64 timeout = F64_MAX);
 
 	/**
 	 * ONLY TO BE CALLED FROM FAST THREAD
@@ -52,6 +53,11 @@ public:
 	 * Returns whether or not the action is running
 	 */
 	B32 IsRunning() const;
+
+	/**
+	 * Returns whether or not the action has taken the allocated amount of time
+	 */
+	B32 IsTimedOut() const;
 
 	/**
 	 * Starts timer, used for timed actions
@@ -102,3 +108,5 @@ void StartChassisAction(Action* action);
  * Adds action parameter to the elevator action buffer
  */
 void StartElevatorAction(Action* action);
+
+#endif

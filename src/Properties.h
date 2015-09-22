@@ -1,4 +1,8 @@
-#pragma once
+#ifndef ELON_PROPERTIES_H
+#define ELON_PROPERTIES_H
+
+#define ELON_PERMANENT_STORAGE_SIZE MiB(64)
+#define ELON_TRANSIENT_STORAGE_SIZE MiB(64)
 
 #define CORE_THREAD_HZ 50
 #define FAST_THREAD_HZ 200
@@ -19,3 +23,5 @@
 
 #define GYRO_SENSITIVITY (0.006f)
 
+
+#endif
