@@ -8,7 +8,6 @@
 #include "WPILib.h"
 #include "Actions.h"
 #include "Util.h"
-#include "ThreadSpace.h"
 
 Action::Action(F64 timeout):timeout(timeout){
 
@@ -31,7 +30,7 @@ B32 Action::IsRunning() const{
 }
 
 void Action::StartActionFromFastThread() {
-	isRunning = TRUE;
+	isRunning = True;
 	startTime = -1;
 }
 
@@ -47,9 +46,9 @@ void Action::Removed(){
 			Terminate();
 		}
 	}
-	isInitialized = FALSE;
-	isCanceled = FALSE;
-	isRunning = FALSE;
+	isInitialized = False;
+	isCanceled = False;
+	isRunning = False;
 }
 
 B32 Action::Update(F32 dt){
@@ -63,10 +62,10 @@ B32 Action::Update(F32 dt){
 }
 
 void StartChassisAction(Action* action){
-	BufferChassisAction(action);
+	//BufferChassisAction(action);
 }
 
 void StartElevatorAction(Action* action){
-	BufferElevatorAction(action);
+	//BufferElevatorAction(action);
 }
 

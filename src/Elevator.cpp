@@ -7,37 +7,16 @@
 
 #include "WPILib.h"
 #include "Elevator.h"
+#include "Memory.h"
 
-SpeedController* motor; //Motor controller controlling elevator
-F32 motorValue; //Motor speed values
-I8 invertedMotor; //Inverted motor modifier
-
-F32 elevatorMagnitude;
-
-void InitializeElevator(U32 elevatorPort){
-	motor = new Victor(elevatorPort);
-	invertedMotor = 1;
-	motor->Set(0.0f);
+void Elevate(ElevatorState* state, F32 speed){
+	state->motorValue = Clamp(speed * state->invertedMotor, -1.0f, 1.0f);
 }
 
-void TerminateElevator(){
-	if(motor){
-		delete motor;
-	}
+void SetElevatorMagnitude(ElevatorState* state, F32 magnitude){
+	state->elevatorMagnitude = magnitude;
 }
 
-void Elevate(F32 speed){
-	motorValue = Clamp(speed * invertedMotor, -1.0f, 1.0f);
-}
-
-void SetElevatorMagnitude(F32 magnitude){
-	elevatorMagnitude = magnitude;
-}
-
-void InvertElevator(){
-	invertedMotor *= -1.0f;
-}
-
-void UpdateElevator(){
-	motor->Set(motorValue * elevatorMagnitude);
+void InvertElevator(ElevatorState* state){
+	state->invertedMotor *= -1;
 }

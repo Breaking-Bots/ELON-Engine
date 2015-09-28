@@ -4,8 +4,7 @@
 #include <cstdint>
 #include <cfloat>
 #include <cmath>
-#include <HAL/cpp/Resource.hpp>
-#include <HAL/cpp/Synchronized.hpp>
+#include <string>
 
 #define lscope static
 #define glob static
@@ -27,11 +26,6 @@ typedef uint64_t U64;
 
 typedef float F32;
 typedef double F64;
-
-class ELON;
-struct ELONMemory;
-typedef B32 (ELON::*B32_FUNCPTR)();
-typedef void (*EXE_FUNCPTR)(ELONMemory*);
 
 #define I8_MIN INT8_MIN
 #define I16_MIN INT16_MIN
@@ -67,17 +61,10 @@ typedef void (*EXE_FUNCPTR)(ELONMemory*);
 
 #define sizeofArr(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
-#define SYNC(s) for (Synchronized _sync(s), int _mutex_locker_i=0;int _mutex_locker_i < 1; int _mutex_locker_i++)
-
 #define AlignPo2(value, alignment) ((value + ((alignment) - 1)) & ~((alignment) - 1))
 #define Align4(value) ((value + 3) & ~3)
 #define Align8(value) ((value + 7) & ~7)
 #define Align16(value) ((value + 15) & ~15)
-
-/**
- * Get FGPA clock time in milliseconds
- */
-F64 SystemTime();
 
 /**
  * Clamps a value to a max and a min

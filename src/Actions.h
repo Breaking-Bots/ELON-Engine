@@ -10,9 +10,9 @@
 class Action{
 
 	F64 startTime = -1;
-	B32 isRunning = FALSE;
-	B32 isInitialized = FALSE;
-	B32 isCanceled = FALSE;
+	B32 isRunning = False;
+	B32 isInitialized = False;
+	B32 isCanceled = False;
 	F64 timeout = F64_MAX;
 public:
 

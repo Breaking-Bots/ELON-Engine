@@ -7,139 +7,70 @@
 
 #include "WPILib.h"
 #include "Chassis.h"
+#include "Memory.h"
 
-B32 motorsInitialized = FALSE;
-
-F32 sensitivity = 0.5f;
-
-U32 nMotors; //Number of used motors
-SpeedController** motors; //Array of motor controllers
-F32* motorValues; //Array of motor speed values
-U32* motorPorts; //Array of motor ports
-I8* invertedMotors; //Number of motors inverted
-Gyro* gyro; //Gyroscope
-
-F32 chassisMagnitude;
-B32 chassisEnabled;
-
-MUTEX_ID motorLock;
-MUTEX_ID motorValueLock;
-MUTEX_ID invertedMotorLock;
-
-void InitializeChassis(U32 frontLeft, U32 backLeft, U32 frontRight, U32 backRight, U32 gyroPort, U32 gyroSensitivity){
-	motorLock = initializeMutexNormal();
-	motorValueLock = initializeMutexNormal();
-	invertedMotorLock = initializeMutexNormal();
-	nMotors = 4;
-	motors = new SpeedController*[nMotors];
-	motorValues = new F32[nMotors];
-	motorPorts = new U32[nMotors];
-	invertedMotors = new I8[nMotors];
-	gyro = new Gyro(gyroPort);
-	gyro->SetSensitivity(gyroSensitivity);
-
-	motorPorts[0] = frontLeft;
-	motorPorts[1] = backLeft;
-	motorPorts[2] = frontRight;
-	motorPorts[3] = backRight;
-
-	for(U32 i = 0; i < nMotors; i++){
-			motors[i] = new Talon(motorPorts[i]);
-			invertedMotors[i] = -1;
-	}
-	motorsInitialized = TRUE;
-	StopMotors();
+intern void SetLeftRightMotorValues(ChassisState* state, F32 leftMgntd, F32 rightMgntd){
+	state->motorValues[0] = (Clamp(leftMgntd, -1.0f, 1.0f) * state->invertedMotors[0]);
+	state->motorValues[1] = (Clamp(leftMgntd, -1.0f, 1.0f) * state->invertedMotors[1]);
+	state->motorValues[2] = (Clamp(-rightMgntd, -1.0f, 1.0f) * state->invertedMotors[2]);
+	state->motorValues[3] = (Clamp(-rightMgntd, -1.0f, 1.0f) * state->invertedMotors[3]);
 }
 
-void TerminateChassis(){
-	if(invertedMotors){
-		delete[] invertedMotors;
-	}
-	if(motorValues){
-		delete[] motorValues;
-	}
-	if(motorPorts){
-		delete[] motorPorts;
-	}
-	if(motors){
-		for(U32 i = 0; i < nMotors; i++){
-			if(motors[i]){
-				delete motors[i];
-			}
-		}
-		delete[] motors;
-	}
-	deleteMutex(invertedMotorLock);
-	deleteMutex(motorValueLock);
-	deleteMutex(motorLock);
+intern void SetMotorValues(ChassisState* state, F32 motor0, F32 motor1, F32 motor2, F32 motor3){
+	state->motorValues[0] = motor0;
+	state->motorValues[1] = motor1;
+	state->motorValues[2] = motor2;
+	state->motorValues[3] = motor3;
 }
 
-intern void SetLeftRightMotorValues(F32 leftMgntd, F32 rightMgntd){
-	CRITICAL_REGION(motorValueLock);
-		motorValues[0] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[0]);
-		motorValues[1] = (Clamp(leftMgntd, -1.0f, 1.0f) * invertedMotors[1]);
-		motorValues[2] = (Clamp(-rightMgntd, -1.0f, 1.0f) * invertedMotors[2]);
-		motorValues[3] = (Clamp(-rightMgntd, -1.0f, 1.0f) * invertedMotors[3]);
-	END_REGION;
-}
-
-intern void SetMotorValues(F32 motor0, F32 motor1, F32 motor2, F32 motor3){
-	CRITICAL_REGION(motorValueLock);
-		motorValues[0] = motor0;
-		motorValues[1] = motor1;
-		motorValues[2] = motor2;
-		motorValues[3] = motor3;
-	END_REGION;
-}
-
-void RawDrive(F32 mgntd, F32 curve){
+void RawDrive(ChassisState* state, F32 mgntd, F32 curve){
 	if(curve < 0){
 		F32 value = logf(-curve);
-		F32 ratio = (value - sensitivity) / (value + sensitivity);
+		F32 ratio = (value - state->sensitivity) / (value + state->sensitivity);
 		if(ratio == 0) {
 			ratio = EZERO;
 		}
-		SetLeftRightMotorValues(mgntd/ratio, mgntd);
+		SetLeftRightMotorValues(state, mgntd/ratio, mgntd);
 	}else if(curve > 0){
 		F32 value = logf(curve);
-		F32 ratio = (value - sensitivity) / (value + sensitivity);
+		F32 ratio = (value - state->sensitivity) / (value + state->sensitivity);
 		if(ratio == 0){
 			ratio = EZERO;
 		}
-		SetLeftRightMotorValues(mgntd, mgntd/ratio);
+		SetLeftRightMotorValues(state, mgntd, mgntd/ratio);
 	}else{
-		SetLeftRightMotorValues(mgntd, mgntd);
+		SetLeftRightMotorValues(state, mgntd, mgntd);
 	}
 }
 
-void TankDrive(F32 leftMgntd, F32 rightMgntd){
-	SetLeftRightMotorValues(leftMgntd,rightMgntd);
+void TankDrive(ChassisState* state, F32 leftMgntd, F32 rightMgntd){
+	SetLeftRightMotorValues(state, leftMgntd,rightMgntd);
 }
 
-void ELONDrive(F32 fwdMgntd, F32 turnMgntd){
+void ELONDrive(ChassisState* state, F32 fwdMgntd, F32 turnMgntd){
 	fwdMgntd = Clamp(fwdMgntd, -1.0f, 1.0f);
 	turnMgntd = Clamp(turnMgntd, -1.0f, 1.0f);
 	if(fwdMgntd > 0.0f){
 		if(turnMgntd > 0.0f){
-			SetLeftRightMotorValues(fwdMgntd - turnMgntd, Max(fwdMgntd, turnMgntd));
+			SetLeftRightMotorValues(state, fwdMgntd - turnMgntd, Max(fwdMgntd, turnMgntd));
 		}else{
-			SetLeftRightMotorValues(Max(fwdMgntd, -turnMgntd), fwdMgntd + turnMgntd);
+			SetLeftRightMotorValues(state, Max(fwdMgntd, -turnMgntd), fwdMgntd + turnMgntd);
 		}
 	}else{
 		if(turnMgntd > 0.0f){
-			SetLeftRightMotorValues(-Max(-fwdMgntd, turnMgntd), fwdMgntd + turnMgntd);
+			SetLeftRightMotorValues(state, -Max(-fwdMgntd, turnMgntd), fwdMgntd + turnMgntd);
 		}else{
-			SetLeftRightMotorValues(fwdMgntd - turnMgntd, -Max(-fwdMgntd, -turnMgntd));
+			SetLeftRightMotorValues(state, fwdMgntd - turnMgntd, -Max(-fwdMgntd, -turnMgntd));
 		}
 	}
 }
 
-void SetChassisMagnitude(F32 magnitude){
-	chassisMagnitude = magnitude;
+void SetChassisMagnitude(ChassisState* state, F32 magnitude){
+	state->chassisMagnitude = magnitude;
 }
 
-void EnableChassis(B32 enable){
-	chassisEnabled = enable;
+void EnableChassis(ChassisState* state, B32 enable){
+	state->chassisEnabled = enable;
 	if(enable){
 		COUT("Chassis enabled");
 	}else{
@@ -147,51 +78,21 @@ void EnableChassis(B32 enable){
 	}
 }
 
-B32 IsChassisEnabled(){
-	return chassisEnabled;
+B32 IsChassisEnabled(ChassisState* state){
+	return state->chassisEnabled;
 }
 
-void StopMotors(){
-	CRITICAL_REGION(motorLock);
-		if(motorsInitialized){
-			for(U32 i = 0; i < nMotors; i++){
-				motors[i]->Set(0.0f);
-			}
+void StopMotors(ChassisState* state){
+	if(state->isInitialized){
+		for(U32 i = 0; i < state->nMotors; i++){
+			state->motorValues[i] = 0.0f;
 		}
-	END_REGION;
+	}
 }
 
-void InvertMotor(U32 motorPort){
-	if(motorsInitialized){
-		CRITICAL_REGION(invertedMotorLock);
-			for(U32 i = 0; i < nMotors; i++){
-				if(motorPorts[i] == motorPort) {
-					invertedMotors[i]*=-1;
-					return;
-				}
-			}
-		END_REGION;
+void InvertMotor(ChassisState* state, U32 motorPort){
+	if(state->isInitialized){
+		state->invertedMotors[motorPort] *= -1;
 	}
 	CERR("Invalid port: %d.", motorPort);
-}
-
-F32 HeadingDeg(){
-	return gyro->GetAngle();
-}
-
-F32 HeadingRad(){
-	return gyro->GetAngle() * DEG_TO_RAD;
-}
-
-void UpdateChassis(){
-	if(motorsInitialized && chassisEnabled){
-		CRITICAL_REGION(motorLock);
-			Synchronized __sync(motorValueLock);
-			for(U32 i = 0; i < nMotors; i++){
-				motors[i]->Set(motorValues[i] * chassisMagnitude);
-			}
-		END_REGION;
-	}else{
-		StopMotors();
-	}
 }

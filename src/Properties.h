@@ -3,10 +3,15 @@
 
 #include "Util.h"
 
+#define DISABLE_FAST_THREAD 1
+#define DISABLE_CORE_THREAD 0
 
 #define CORE_THREAD_HZ 50
 #define FAST_THREAD_HZ 200
 
+#define NUM_GAMEPADS 2
+
+#define CHASSIS_NUM_MOTORS 4
 #define CHASSIS_PORT_FL 0
 #define CHASSIS_PORT_BL 1
 #define CHASSIS_PORT_FR 2
@@ -23,7 +28,12 @@
 
 #define GYRO_SENSITIVITY (0.006f)
 
-U64 ELON_PERMANENT_STORAGE_SIZE MiB(16);
-U64 ELON_TRANSIENT_STORAGE_SIZE MiB(16);
+#define ELON_PERMANENT_STORAGE_SIZE (MiB(16))
+#define ELON_TRANSIENT_STORAGE_SIZE (MiB(16))
+#define ELON_TOTAL_STORAGE_SIZE (ELON_PERMANENT_STORAGE_SIZE + ELON_TRANSIENT_STORAGE_SIZE)
+
+#define deadzone (0.25f)
+#define deadzone2 (deadzone * deadzone)
+#define triggerDeadzone (0.06f)
 
 #endif

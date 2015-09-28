@@ -2,6 +2,8 @@
 #define ELON_MEMORY_H
 
 #include "Util.h"
+#include "Properties.h"
+#include "Input.h"
 
 struct ELONMemory;
 struct ELONState;
@@ -17,28 +19,27 @@ struct ELONMemory{
 };
 
 struct ChassisState{
-	Talon motors[4];
-	B32 isInitialized;
-	F32 sensitivity;
-	U32 nMotors = 4;
-	F32 motorValues[4];
-	U32 motorPorts[4];
-	I8 invertedMotors[4];
-	Gyro gyro;
-	F32 chassisMagnitude;
-	B32 chassisEnabled;
+	F32 motorValues[CHASSIS_NUM_MOTORS]; //Array of motor speed values
+	F32 chassisMagnitude; //Magnitude of chassis speed
+	F32 sensitivity; //Sensitivity of RawDrive
+	U32 nMotors = CHASSIS_NUM_MOTORS; //Number of used motors
+	B32 isInitialized; //Initialization flag
+	B32 chassisEnabled; //Allow chassis control flag
+	I8 invertedMotors[CHASSIS_NUM_MOTORS]; //Array of motor inversions
 
 };
 
 struct ElevatorState{
-
+	F32 motorValue; //Motor speed value
+	F32 elevatorMagnitude; //Magnitude of elevator speed
+	B32 isInitialized; //Initialization flag
+	I8 invertedMotor; //Motor inversion
 };
 
 struct ELONState{
 	ChassisState chassisState;
 	ElevatorState elevatorState;
-	F32 chassisMagnitude;
-	F32 elevatorMagnitude;
+	Gamepad gamepads[NUM_GAMEPADS];
 };
 
 

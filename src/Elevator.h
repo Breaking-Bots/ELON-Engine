@@ -3,35 +3,24 @@
 
 #include "Util.h"
 
-/**
- * Initialize elevator motor
- */
-void InitializeElevator(U32 elevatorPort);
-
-/**
- * Free elevator memory
- */
-void TerminateElevator();
+struct ElevatorState;
 
 /**
  * Set motor speed from -1.0f to 1.0f
  */
-void Elevate(F32 speed);
+void Elevate(ElevatorState* state, F32 speed);
 
 /**
  * Set global magnitude of elevator motor
  */
-void SetElevatorMagnitude(F32 magnitude);
+void SetElevatorMagnitude(ElevatorState* state, F32 magnitude);
 
 /**
  * Invert the motor
  */
-void InvertElevator();
+void InvertElevator(ElevatorState* state);
 
-/**
- * Writes motor value to motor
- */
-void UpdateElevator();
+
 
 
 #endif
