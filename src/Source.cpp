@@ -5,13 +5,7 @@
  *      Author: Zaeem
  */
 
-#include "Util.h"
-#include "Memory.h"
-#include "Properties.h"
-#include "Source.h"
-#include "Input.h"
-#include "Chassis.h"
-#include "Elevator.h"
+#include "ELONEngine.h"
 
 ELON_CALLBACK(TeleopCallback){
 
@@ -36,18 +30,18 @@ ELON_CALLBACK(TestCallback){
 	F32 rt = RT(gamepad);
 
 	if(STARTTapped(gamepad)){
-		EnableChassis(&(state->chassisState), !IsChassisEnabled(&(state->chassisState)));
+		EnableChassis(memory, !IsChassisEnabled(memory));
 	}
-	COUT("%u", DecToBin(Buttons(gamepad)));
+	//memory->Cout("%u", DecToBin(Buttons(gamepad)));
 
-	ELONDrive(&(state->chassisState), ly, rx);
-	Elevate(&(state->elevatorState), RB(gamepad) - LB(gamepad));
+	ELONDrive(memory, ly, rx);
+	Elevate(memory, RB(gamepad) - LB(gamepad));
 
 	state->chassisState.chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 	state->elevatorState.elevatorMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 
-	SetChassisMagnitude(&(state->chassisState), state->chassisState.chassisMagnitude);
-	SetElevatorMagnitude(&(state->elevatorState), state->elevatorState.elevatorMagnitude);
+	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
+	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
 
 }
 

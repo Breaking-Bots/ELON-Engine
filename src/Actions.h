@@ -3,11 +3,15 @@
 
 #include "Util.h"
 
+struct ELONMemory;
+
 /**
  * Abstract class that represents an action that a subsystem can undergo.
  * Must be inherited to create custom actions.
  */
 class Action{
+
+	ELONMemory* memory;
 
 	F64 startTime = -1;
 	B32 isRunning = False;
@@ -19,7 +23,7 @@ public:
 	/**
 	 * Action constructor, takes in timeout
 	 */
-	Action(F64 timeout = F64_MAX);
+	Action(ELONMemory* memory, F64 timeout = F64_MAX);
 
 	/**
 	 * ONLY TO BE CALLED FROM FAST THREAD

@@ -3,22 +3,22 @@
 
 #include "Util.h"
 
-struct ElevatorState;
+struct ELONMemory;
 
 /**
  * Set motor speed from -1.0f to 1.0f
  */
-void Elevate(ElevatorState* state, F32 speed);
+void Elevate(ELONMemory* memory, F32 speed);
 
 /**
  * Set global magnitude of elevator motor
  */
-void SetElevatorMagnitude(ElevatorState* state, F32 magnitude);
+void SetElevatorMagnitude(ELONMemory* memory, F32 magnitude);
 
 /**
  * Invert the motor
  */
-void InvertElevator(ElevatorState* state);
+void InvertElevator(ELONMemory* memory);
 
 
 

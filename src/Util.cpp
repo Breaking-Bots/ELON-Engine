@@ -5,10 +5,6 @@
  *      Author: Zaeem
  */
 #include "Util.h"
-#include "stdarg.h"
-#include "stdio.h"
-
-
 
 F32 Clamp(F32 value, F32 min, F32 max){
 	if(value < min) return min;
@@ -102,45 +98,4 @@ U64 DecToBin(U32 dec){
 		dec /= 2;
 	}
 	return bin;
-}
-
-MUTEX_ID loggingLock;
-
-void InitializeLogging(){
-	loggingLock = initializeMutexNormal();
-}
-
-I32 COUT(const std::string& format, ...){
-	CRITICAL_REGION(loggingLock);
-		const char* formattedCStr = format.c_str();
-		char* fmt = new char[strlen(formattedCStr) + 9];
-		strcpy(fmt, "[ELON] ");
-		strcpy(fmt + 7, formattedCStr);
-		strcpy(fmt + strlen(fmt), "\n");
-		va_list args;
-		va_start(args, format);
-		I32 result = vprintf(fmt, args);
-		va_end(args);
-		return result;
-	END_REGION;
-}
-
-I32 CERR(const std::string& format, ...){
-	CRITICAL_REGION(loggingLock);
-		const char* formattedCStr = format.c_str();
-		char* fmt = new char[strlen(formattedCStr) + 10];
-		strcpy(fmt, "[ERROR] ");
-		strcpy(fmt + 8, formattedCStr);
-		strcpy(fmt + strlen(fmt), "\n");
-		va_list args;
-		va_start(args, format);
-		I32 result = vprintf(fmt, args);
-		va_end(args);
-		return result;
-	END_REGION;
-}
-
-void TerminateLogging(){
-	takeMutex(loggingLock);
-	deleteMutex(loggingLock);
 }

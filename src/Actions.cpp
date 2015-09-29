@@ -5,11 +5,9 @@
  *      Author: Zaeem
  */
 
-#include "WPILib.h"
-#include "Actions.h"
-#include "Util.h"
+#include "ELONEngine.h"
 
-Action::Action(F64 timeout):timeout(timeout){
+Action::Action(ELONMemory* memory, F64 timeout):memory(memory), timeout(timeout){
 
 }
 
@@ -18,7 +16,7 @@ Action::~Action(){
 }
 
 B32 Action::IsTimedOut() const{
-	return SystemTime() - startTime >= timeout;
+	return memory->SystemTime() - startTime >= timeout;
 }
 
 B32 Action::IsCanceled() const{
@@ -35,7 +33,7 @@ void Action::StartActionFromFastThread() {
 }
 
 void Action::StartTimer(){
-	startTime = SystemTime();
+	startTime = memory->SystemTime();
 }
 
 void Action::Removed(){

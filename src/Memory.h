@@ -16,6 +16,9 @@ struct ELONMemory{
 	void* permanentStorage; //REQUIRED to be cleared to zero at startup
 	U32 transientStorageSize;
 	void* transientStorage; //REQUIRED to be cleared to zero at startup
+	LoggingCallback* Cout;
+	LoggingCallback* Cerr;
+	SystemTimeCallback* SystemTime;
 };
 
 struct ChassisState{

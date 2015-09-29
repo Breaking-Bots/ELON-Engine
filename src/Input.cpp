@@ -5,9 +5,7 @@
  *      Author: Zaeem
  */
 
-#include "Properties.h"
-#include "Util.h"
-#include "Input.h"
+#include "ELONEngine.h"
 
 U32 Buttons(Gamepad* gamepad){
 	return gamepad->buttons;

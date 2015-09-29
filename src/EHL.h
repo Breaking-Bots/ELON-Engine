@@ -5,6 +5,8 @@
 #include "ELONEngine.h"
 
 class Task;
+class ELON;
+typedef B32 (ELON::*B32_FUNCPTR)();
 
 /*******************************************************************
  * ELON Engine Management                                          *
@@ -140,7 +142,7 @@ intern I32 FastThreadRuntime(U32 targetHz);
  * frequency provided
  * elon is the robot object running
  */
-intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, EXE_FUNCPTR executableCallback, ELON* elon);
+intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallback* executableCallback, ELON* elon);
 
 /*******************************************************************
  * Input					                                       *
@@ -159,7 +161,6 @@ class ELON : public SampleRobot{
 	void* totalElonMemoryBlock;
 	//TODO: Make these values
 	Task* fastThread;
-	ELONEngine* engine;
 public:
 	ELONMemory elonMemory;
 
@@ -178,6 +179,5 @@ public:
 	~ELON();
 };
 
-typedef B32 (ELON::*B32_FUNCPTR)();
 
 #endif

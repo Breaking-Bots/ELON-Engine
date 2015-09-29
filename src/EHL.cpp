@@ -14,11 +14,62 @@
 #include <queue>
 #include <set>
 #include <algorithm>
+#include "stdarg.h"
 #include "EHL.h"
 
-//TODO: Move
-intern F64 SystemTime(){
+
+/*******************************************************************
+ * Time						                                       *
+ *******************************************************************/
+
+SYSTEM_TIME_CALLBACK(SystemTime){
 	return GetFPGATime() / 1000.0;
+}
+
+
+/*******************************************************************
+ * Logging					                                       *
+ *******************************************************************/
+
+MUTEX_ID loggingLock;
+
+void InitializeLogging(){
+	loggingLock = initializeMutexNormal();
+}
+
+LOGGING_CALLBACK(Cout){
+	CRITICAL_REGION(loggingLock);
+		const char* formattedCStr = format.c_str();
+		char* fmt = new char[strlen(formattedCStr) + 9];
+		strcpy(fmt, "[ELON] ");
+		strcpy(fmt + 7, formattedCStr);
+		strcpy(fmt + strlen(fmt), "\n");
+		va_list args;
+		va_start(args, format);
+		I32 result = vprintf(fmt, args);
+		va_end(args);
+		return result;
+	END_REGION;
+}
+
+LOGGING_CALLBACK(Cerr){
+	CRITICAL_REGION(loggingLock);
+		const char* formattedCStr = format.c_str();
+		char* fmt = new char[strlen(formattedCStr) + 10];
+		strcpy(fmt, "[ERROR] ");
+		strcpy(fmt + 8, formattedCStr);
+		strcpy(fmt + strlen(fmt), "\n");
+		va_list args;
+		va_start(args, format);
+		I32 result = vprintf(fmt, args);
+		va_end(args);
+		return result;
+	END_REGION;
+}
+
+void TerminateLogging(){
+	takeMutex(loggingLock);
+	deleteMutex(loggingLock);
 }
 
 /*******************************************************************
@@ -26,27 +77,35 @@ intern F64 SystemTime(){
  *******************************************************************/
 
 struct ELONEngine{
+	MODULE ELONEngine;
 	ELONCallback* TeleopCallback;
 	ELONCallback* TestCallback;
 	ELONCallback* AutonomousCallback;
 	ELONCallback* DisabledCallback;
+	B32 isValid;
 };
 
 intern ELONEngine LoadELONEngine(){
 	ELONEngine result = {};
 
-	//Initialize to stub functions
-	result.TeleopCallback = ELONCallbackStub;
-	result.TestCallback = ELONCallbackStub;
-	result.AutonomousCallback = ELONCallbackStub;
-	result.DisabledCallback = ELONCallbackStub;
-
-	void* ELONEngine = dlopen("libELON.so", RTLD_NOW);
-	if(ELONEngine){
+	result.ELONEngine = dlopen("libELON.so", RTLD_NOW);
+	if(result.ELONEngine){
 		//Load real functions
-		result.TeleopCallback = (ELONCallback*)dlsym(ELONEngine, "TeleopCallback");
-		result.TestCallback = (ELONCallback*)dlsym(ELONEngine, "TestCallback");
-		result.DisabledCallback = (ELONCallback*)dlsym(ELONEngine, "AutonomousCallback");
+		result.TeleopCallback = (ELONCallback*)dlsym(result.ELONEngine, "TeleopCallback");
+		result.TestCallback = (ELONCallback*)dlsym(result.ELONEngine, "TestCallback");
+		result.AutonomousCallback = (ELONCallback*)dlsym(result.ELONEngine, "AutonomousCallback");
+		result.DisabledCallback = (ELONCallback*)dlsym(result.ELONEngine, "DisabledCallback");
+
+		result.isValid = (result.TeleopCallback && result.TestCallback && result.AutonomousCallback
+						 && result.DisabledCallback);
+	}
+
+	if(!(result.isValid)){
+		//Initialize to stub functions
+		result.TeleopCallback = ELONCallbackStub;
+		result.TestCallback = ELONCallbackStub;
+		result.AutonomousCallback = ELONCallbackStub;
+		result.DisabledCallback = ELONCallbackStub;
 	}
 
 	return result;
@@ -330,7 +389,7 @@ intern I32 FastThreadRuntime(U32 targetHz){
 			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
 			F64 testMSElapsedForFrame = SystemTime() - lastTime;
 			if(testMSElapsedForFrame >= targetMSPerFrame){
-				CERR("Fast Thread waited too long.");
+				Cerr("Fast Thread waited too long.");
 			}else{
 				do{
 					workMSElapsed = SystemTime() - lastTime;
@@ -354,7 +413,7 @@ intern I32 FastThreadRuntime(U32 targetHz){
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("[ELON] Total Fast Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
+	Cout("[ELON] Total Fast Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
 #endif
 	return 0;
 }
@@ -381,7 +440,7 @@ intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallb
 			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
 			F64 testMSElapsedForFrame = SystemTime() - lastTime;
 			if(testMSElapsedForFrame >= targetMSPerFrame){
-				CERR("Core Thread waited too long.");
+				Cerr("Core Thread waited too long.");
 			}else{
 				do{
 					workMSElapsed = SystemTime() - lastTime;
@@ -390,7 +449,7 @@ intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallb
 		}else{
 			//TODO: MISSED FRAME
 			//TODO: Log
-			COUT("Missed last Core Thread frame.");
+			Cout("Missed last Core Thread frame.");
 		}
 
 		F64 endTime = SystemTime();
@@ -524,13 +583,11 @@ intern void UpdateInput(ELONMemory* memory){
  * ELON Class				                                       *
  *******************************************************************/
 
+ELONEngine engine;
 ELON* elon;
 
 ELON::ELON(){
-	COUT("Initializing");
-
-	//ELONEngine startup
-	engine = scast<ELONEngine>(malloc(sizeof(ELONEngine)));
+	Cout("Initializing");
 
 #if 0
 	void* baseAddress = rcast<void*>(U32((GiB(4) - 1) - ((ELON_TOTAL_STORAGE_SIZE / getpagesize()) + 1) * getpagesize()));
@@ -542,16 +599,17 @@ ELON::ELON(){
 	elonMemory = {};
 	elonMemory.permanentStorageSize = ELON_PERMANENT_STORAGE_SIZE;
 	elonMemory.transientStorageSize = ELON_TRANSIENT_STORAGE_SIZE;
-
-
+	elonMemory.Cout = Cout;
+	elonMemory.Cerr = Cerr;
+	elonMemory.SystemTime = SystemTime;
 
 	totalElonMemoryBlock = mmap(baseAddress, ELON_TOTAL_STORAGE_SIZE, PROT_READ | PROT_WRITE,
 								MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
 
 	if(totalElonMemoryBlock){
-		COUT("Total ELON memory successfully allocated with size of %u Bytes", ELON_TOTAL_STORAGE_SIZE);
+		Cout("Total ELON memory successfully allocated with size of %u Bytes", ELON_TOTAL_STORAGE_SIZE);
 	}else{
-		CERR("Total ELON memory allocation failed with size of %u Bytes", ELON_TOTAL_STORAGE_SIZE);
+		Cerr("Total ELON memory allocation failed with size of %u Bytes", ELON_TOTAL_STORAGE_SIZE);
 	}
 
 	elonMemory.permanentStorage = totalElonMemoryBlock;
@@ -583,14 +641,14 @@ void ELON::Autonomous(){
 	ResumeFastThread();
 
 	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsAutonomous),
-					 &(engine->AutonomousCallback), this);
+					 engine.AutonomousCallback, this);
 
 	PauseFastThread();
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
+	Cout("Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 void ELON::OperatorControl(){
@@ -598,14 +656,14 @@ void ELON::OperatorControl(){
 	ResumeFastThread();
 
 	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsOperatorControl),
-					 engine->TeleopCallback, this);
+					 engine.TeleopCallback, this);
 
 	PauseFastThread();
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) / 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
+	Cout("Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 void ELON::Test(){
@@ -613,27 +671,27 @@ void ELON::Test(){
 	ResumeFastThread();
 
 	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
-					 engine->TestCallback, this);
+					 engine.TestCallback, this);
 
 	PauseFastThread();
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
+	Cout("Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 void ELON::Disabled(){
 	F64 startTime = SystemTime();
 
 	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
-					 engine->DisabledCallback, this);
+					 engine.DisabledCallback, this);
 
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	COUT("Total Disabled time: %dm%.04fs.", totalMinutes, totalSeconds);
+	Cout("Total Disabled time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 ELON::~ELON(){
@@ -650,8 +708,6 @@ ELON::~ELON(){
 	//Memory shutdown
 	munmap(totalElonMemoryBlock, ELON_TOTAL_STORAGE_SIZE);
 
-	free(engine);
-
 	//Logging shutdown
 	TerminateLogging();
 }
@@ -661,10 +717,13 @@ ELON::~ELON(){
  *******************************************************************/
 
 I32 main() {
+	//ELONEngine startup
+	engine = LoadELONEngine();
+
 	//Logging startup
 	InitializeLogging();
 	if (!HALInitialize()){
-		CERR("HAL could not be initialized.");
+		Cerr("HAL could not be initialized.");
 		return -1;
 	}
 	HALReport(HALUsageReporting::kResourceType_Language, HALUsageReporting::kLanguage_CPlusPlus);

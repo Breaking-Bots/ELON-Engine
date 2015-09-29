@@ -6,6 +6,11 @@
 #include <cmath>
 #include <string>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #define lscope static
 #define glob static
 #define intern static
@@ -26,6 +31,8 @@ typedef uint64_t U64;
 
 typedef float F32;
 typedef double F64;
+
+typedef void* MODULE;
 
 #define I8_MIN INT8_MIN
 #define I16_MIN INT16_MIN
@@ -155,23 +162,25 @@ U64 Pow10(U32 exponent);
 U64 DecToBin(U32 dec);
 
 /**
- * Initialize logging
+ * Logging dytor
  */
-void InitializeLogging();
+#define LOGGING_CALLBACK(name) I32 name(const std::string& format, ...)
+typedef LOGGING_CALLBACK(LoggingCallback);
+LOGGING_CALLBACK(LoggingCallbackStub){
+	return 0;
+}
 
 /**
- * ELON standard logging
+ * System Time dytor
  */
-I32 COUT(const std::string& format, ...);
+#define SYSTEM_TIME_CALLBACK(name) F64 name()
+typedef SYSTEM_TIME_CALLBACK(SystemTimeCallback);
+SYSTEM_TIME_CALLBACK(SystemTimeCallbackStub){
+	return 0;
+}
 
-/**
- * ELON error logging
- */
-I32 CERR(const std::string& format, ...);
-
-/**
- * Terminate logging
- */
-void TerminateLogging();
+#ifdef __cplusplus
+}
+#endif
 
 #endif

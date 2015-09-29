@@ -5,18 +5,22 @@
  *      Author: Zaeem
  */
 
-#include "WPILib.h"
-#include "Elevator.h"
-#include "Memory.h"
+#include "ELONEngine.h"
 
-void Elevate(ElevatorState* state, F32 speed){
-	state->motorValue = Clamp(speed * state->invertedMotor, -1.0f, 1.0f);
+void Elevate(ELONMemory* memory, F32 speed){
+	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
+	ElevatorState state = elonState->elevatorState;
+	state.motorValue = Clamp(speed * state.invertedMotor, -1.0f, 1.0f);
 }
 
-void SetElevatorMagnitude(ElevatorState* state, F32 magnitude){
-	state->elevatorMagnitude = magnitude;
+void SetElevatorMagnitude(ELONMemory* memory, F32 magnitude){
+	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
+	ElevatorState state = elonState->elevatorState;
+	state.elevatorMagnitude = magnitude;
 }
 
-void InvertElevator(ElevatorState* state){
-	state->invertedMotor *= -1;
+void InvertElevator(ELONMemory* memory){
+	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
+	ElevatorState state = elonState->elevatorState;
+	state.invertedMotor *= -1;
 }
