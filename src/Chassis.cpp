@@ -10,10 +10,10 @@
 intern void SetLeftRightMotorValues(ELONMemory* memory, F32 leftMgntd, F32 rightMgntd){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	ChassisState state = elonState->chassisState;
-	state.motorValues[0] = (Clamp(leftMgntd, -1.0f, 1.0f) * state.invertedMotors[0]);
-	state.motorValues[1] = (Clamp(leftMgntd, -1.0f, 1.0f) * state.invertedMotors[1]);
-	state.motorValues[2] = (Clamp(-rightMgntd, -1.0f, 1.0f) * state.invertedMotors[2]);
-	state.motorValues[3] = (Clamp(-rightMgntd, -1.0f, 1.0f) * state.invertedMotors[3]);
+	state.motorValues[0] = (memory->Clamp(leftMgntd, -1.0f, 1.0f) * state.invertedMotors[0]);
+	state.motorValues[1] = (memory->Clamp(leftMgntd, -1.0f, 1.0f) * state.invertedMotors[1]);
+	state.motorValues[2] = (memory->Clamp(-rightMgntd, -1.0f, 1.0f) * state.invertedMotors[2]);
+	state.motorValues[3] = (memory->Clamp(-rightMgntd, -1.0f, 1.0f) * state.invertedMotors[3]);
 }
 
 intern void SetMotorValues(ELONMemory* memory, F32 motor0, F32 motor1, F32 motor2, F32 motor3){
@@ -49,26 +49,24 @@ void RawDrive(ELONMemory* memory, F32 mgntd, F32 curve){
 
 void TankDrive(ELONMemory* memory, F32 leftMgntd, F32 rightMgntd){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
-	ChassisState state = elonState->chassisState;
 	SetLeftRightMotorValues(memory, leftMgntd,rightMgntd);
 }
 
 void ELONDrive(ELONMemory* memory, F32 fwdMgntd, F32 turnMgntd){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
-	ChassisState state = elonState->chassisState;
-	fwdMgntd = Clamp(fwdMgntd, -1.0f, 1.0f);
-	turnMgntd = Clamp(turnMgntd, -1.0f, 1.0f);
+	fwdMgntd = memory->Clamp(fwdMgntd, -1.0f, 1.0f);
+	turnMgntd = memory->Clamp(turnMgntd, -1.0f, 1.0f);
 	if(fwdMgntd > 0.0f){
 		if(turnMgntd > 0.0f){
-			SetLeftRightMotorValues(memory, fwdMgntd - turnMgntd, Max(fwdMgntd, turnMgntd));
+			SetLeftRightMotorValues(memory, fwdMgntd - turnMgntd, memory->Max(fwdMgntd, turnMgntd));
 		}else{
-			SetLeftRightMotorValues(memory, Max(fwdMgntd, -turnMgntd), fwdMgntd + turnMgntd);
+			SetLeftRightMotorValues(memory, memory->Max(fwdMgntd, -turnMgntd), fwdMgntd + turnMgntd);
 		}
 	}else{
 		if(turnMgntd > 0.0f){
-			SetLeftRightMotorValues(memory, -Max(-fwdMgntd, turnMgntd), fwdMgntd + turnMgntd);
+			SetLeftRightMotorValues(memory, -memory->Max(-fwdMgntd, turnMgntd), fwdMgntd + turnMgntd);
 		}else{
-			SetLeftRightMotorValues(memory, fwdMgntd - turnMgntd, -Max(-fwdMgntd, -turnMgntd));
+			SetLeftRightMotorValues(memory, fwdMgntd - turnMgntd, -memory->Max(-fwdMgntd, -turnMgntd));
 		}
 	}
 }

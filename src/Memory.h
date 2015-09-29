@@ -19,6 +19,24 @@ struct ELONMemory{
 	LoggingCallback* Cout;
 	LoggingCallback* Cerr;
 	SystemTimeCallback* SystemTime;
+	F32CallbackF32F32F32* Clamp;
+	F32CallbackF32F32* Max;
+	F32CallbackF32* Sq;
+	F32CallbackF32* Cu;
+	F32CallbackF32* Qu;
+	I32CallbackF32* Sgn;
+	F32CallbackF32* NormalizeAlpha;
+	F32CallbackF32F32F32* Lerp;
+	F32CallbackF32F32F32* Coserp;
+	F32CallbackF32F32F32F32* SystemMagnitudeInterpolation;
+	F32CallbackF32* PrincipalAngleDeg;
+	F32CallbackF32* PrincipalAngleRad;
+	F32CallbackF32* MinDistAngleDeg;
+	F32CallbackF32* MinDistAngleRad;
+	F32CallbackF32F32* AngularDistDeg;
+	F32CallbackF32F32* AngularDistRad;
+	U64CallbackU32* Pow10;
+	U64CallbackU32* DecToBin;
 };
 
 struct ChassisState{

@@ -13,9 +13,6 @@ extern "C"
  */
 #define ELON_CALLBACK(name) void name(ELONMemory* memory)
 typedef ELON_CALLBACK(ELONCallback);
-ELON_CALLBACK(ELONCallbackStub){
-
-}
 
 #ifdef __cplusplus
 }

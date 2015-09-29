@@ -73,111 +73,35 @@ typedef void* MODULE;
 #define Align8(value) ((value + 7) & ~7)
 #define Align16(value) ((value + 15) & ~15)
 
-/**
- * Clamps a value to a max and a min
- */
-F32 Clamp(F32 value, F32 min, F32 max);
+#define F32_CALLBACK_F32_F32_F32_F32(name) F32 name(F32 a, F32 b, F32 c, F32 d)
+typedef F32_CALLBACK_F32_F32_F32_F32(F32CallbackF32F32F32F32);
 
-/**
- * Returns max of two values
- */
-F32 Max(F32 a, F32 b);
+#define F32_CALLBACK_F32_F32_F32(name) F32 name(F32 a, F32 b, F32 c)
+typedef F32_CALLBACK_F32_F32_F32(F32CallbackF32F32F32);
 
-/**
- * Returns x^2
- */
-F32 Sq(F32 x);
+#define F32_CALLBACK_F32_F32(name) F32 name(F32 a, F32 b)
+typedef F32_CALLBACK_F32_F32(F32CallbackF32F32);
 
-/**
- * Returns x^4
- */
-F32 Qu(F32 x);
+#define F32_CALLBACK_F32(name) F32 name(F32 a)
+typedef F32_CALLBACK_F32(F32CallbackF32);
 
-/**
- * Returns the sign of a value; -1 or +1
- */
-I32 Sgn(F32 x);
+#define I32_CALLBACK_F32(name) I32 name(F32 a)
+typedef I32_CALLBACK_F32(I32CallbackF32);
 
-/**
- * Normalizes a value of [-1.0f, 1.0f] to [0.0f, 1.0f]
- */
-F32 NormalizeAlpha(F32 alpha);
-
-/**
- * Linear Interpolation between two values
- * alpha [0.0f, 1.0f], percentage between two values
- */
-F32 Lerp(F32 min, F32 max, F32 alpha);
-
-/**
- * Cosine interpolation between two values. smoother than linear interpolation
- * alpha [0.0f, 1.0f], percentage between two values
- */
-F32 Coserp(F32 min, F32 max, F32 alpha);
-
-/**
- * Cosine interpolation between three values
- * alpha [-1.0f, 1.0f], percentage displacement from middle value
- */
-F32 SystemMagnitudeInterpolation(F32 min, F32 mid, F32 max, F32 alpha);
-
-/**
- * Returns the angle normalized to a value of [0,360] degrees
- */
-F32 PrincipalAngleDeg(F32 deg);
-
-/**
- * Returns the angle normalized to a value of [0,TAU] radians
- */
-F32 PrincipalAngleRad(F32 rad);
-
-/**
- * Returns the angle normalized to a value of [-180,180] degrees
- */
-F32 MinDistAngleDeg(F32 deg);
-
-/**
- * Returns the angle normalized to a value of [-PI,PI] radians
- */
-F32 MinDistAngleRad(F32 rad);
-
-/**
- * Returns the principal distance of [-180,180] degrees between two angles
- */
-F32 AngularDistDeg(F32 from, F32 to);
-
-/**
- * Returns the principal distance of [-PI,PI] between two angles
- */
-F32 AngularDistRad(F32 from, F32 to);
-
-/**
- * Quick powers of 10
- */
-U64 Pow10(U32 exponent);
-
-/**
- * Decimal to binary converter
- */
-U64 DecToBin(U32 dec);
+#define U64_CALLBACK_U32(name) U64 name(U32 a)
+typedef U64_CALLBACK_U32(U64CallbackU32);
 
 /**
  * Logging dytor
  */
 #define LOGGING_CALLBACK(name) I32 name(const std::string& format, ...)
 typedef LOGGING_CALLBACK(LoggingCallback);
-LOGGING_CALLBACK(LoggingCallbackStub){
-	return 0;
-}
 
 /**
  * System Time dytor
  */
 #define SYSTEM_TIME_CALLBACK(name) F64 name()
 typedef SYSTEM_TIME_CALLBACK(SystemTimeCallback);
-SYSTEM_TIME_CALLBACK(SystemTimeCallbackStub){
-	return 0;
-}
 
 #ifdef __cplusplus
 }

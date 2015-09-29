@@ -37,8 +37,8 @@ ELON_CALLBACK(TestCallback){
 	ELONDrive(memory, ly, rx);
 	Elevate(memory, RB(gamepad) - LB(gamepad));
 
-	state->chassisState.chassisMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-	state->elevatorState.elevatorMagnitude = SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->elevatorState.elevatorMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 
 	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
 	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);

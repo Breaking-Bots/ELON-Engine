@@ -19,13 +19,110 @@
 
 
 /*******************************************************************
- * Time						                                       *
+ * Util						                                       *
  *******************************************************************/
 
 SYSTEM_TIME_CALLBACK(SystemTime){
 	return GetFPGATime() / 1000.0;
 }
 
+F32_CALLBACK_F32_F32_F32(Clamp){
+	if(a < b) return b;
+	else if(a > c) return c;
+	return a;
+}
+
+
+F32_CALLBACK_F32_F32(Max){
+	if(b > a) return b;
+	return a;
+}
+
+
+F32_CALLBACK_F32(Sq){
+	return a * a;
+}
+
+F32_CALLBACK_F32(Cu){
+	return a * a * a;
+}
+
+
+F32_CALLBACK_F32(Qu){
+	return a * a * a * a;
+}
+
+
+I32_CALLBACK_F32(Sgn){
+	return (0 < a) - (a < 0);
+}
+
+
+F32_CALLBACK_F32(NormalizeAlpha){
+	return 0.5f * a + 0.5f;
+}
+
+
+F32_CALLBACK_F32_F32_F32(Lerp){
+	return (1.0f - c) * a + c * b;
+}
+
+
+F32_CALLBACK_F32_F32_F32(Coserp){
+	F32 alpha = (1.0f - cosf(c * PI)) * 0.5f;
+	return (1.0f - alpha) * a + alpha * b;
+}
+
+
+F32_CALLBACK_F32_F32_F32_F32(SystemMagnitudeInterpolation){
+	if(d < 0.0f){
+		d++;
+		return Coserp(a, b, d);
+	}else{
+		return Coserp(b, c, d);
+	}
+}
+
+F32_CALLBACK_F32(PrincipalAngleDeg){
+	return a - (I32)(a/360) * 360; //TODO: Test
+}
+
+F32_CALLBACK_F32(PrincipalAngleRad){
+	return a - (I32)(a/TAU) * TAU; //TODO: Test
+}
+
+F32_CALLBACK_F32(MinDistAngleDeg){
+	return (a - (I32)(a/360) * 360) - 180.0f; //TODO: Test
+}
+
+F32_CALLBACK_F32(MinDistAngleRad){
+	return (a - (I32)(a/TAU) * TAU) - PI; //TODO: Test
+}
+
+F32_CALLBACK_F32_F32(AngularDistDeg){
+	return MinDistAngleDeg(b - a);
+}
+
+F32_CALLBACK_F32_F32(AngularDistRad){
+	return MinDistAngleRad(b - a);
+}
+
+U64_CALLBACK_U32(Pow10){
+	U64 result = 1;
+	for(U32 i = 0; i < a; i++){
+		result *= 10;
+	}
+	return result;
+}
+
+U64_CALLBACK_U32(DecToBin){
+	U64 bin = 0;
+	for(int i = 0; a != 0; i++){
+		bin += Pow10(i) * (a % 2);
+		a /= 2;
+	}
+	return bin;
+}
 
 /*******************************************************************
  * Logging					                                       *
@@ -85,6 +182,10 @@ struct ELONEngine{
 	B32 isValid;
 };
 
+ELON_CALLBACK(ELONCallbackStub){
+
+}
+
 intern ELONEngine LoadELONEngine(){
 	ELONEngine result = {};
 
@@ -110,7 +211,6 @@ intern ELONEngine LoadELONEngine(){
 
 	return result;
 }
-
 
 /*******************************************************************
  * Elevator		                                                   *
@@ -292,7 +392,7 @@ intern void RemoveChassisAction(Action* action){
 	}
 
 	chassisActionQueue.pop();
-	action->Removed();
+	//action->Removed();
 }
 
 intern void RemoveElevatorAction(Action* action){
@@ -305,7 +405,7 @@ intern void RemoveElevatorAction(Action* action){
 	}
 
 	elevatorActionQueue.pop();
-	action->Removed();
+	//action->Removed();
 }
 
 intern void HandleChassisBufferAdditions(Action* action){
@@ -317,7 +417,7 @@ intern void HandleChassisBufferAdditions(Action* action){
 	if(found == chassisActionSet.end()){
 		chassisActionSet.insert(action);
 		chassisActionQueue.push(action);
-		action->StartActionFromFastThread();
+		//action->StartActionFromFastThread();
 	}
 
 }
@@ -331,7 +431,7 @@ intern void HandleElevatorBufferAdditions(Action* action){
 	if(found == elevatorActionSet.end()){
 		elevatorActionSet.insert(action);
 		elevatorActionQueue.push(action);
-		action->StartActionFromFastThread();
+		//action->StartActionFromFastThread();
 	}
 
 }
@@ -340,16 +440,16 @@ intern void ExecuteActionQueues(F32 dt){
 
 	Action* chassisAction = chassisActionQueue.front();
 	if(!(chassisActionQueue.empty())){
-		if(!(chassisAction->Update(dt))){
-			RemoveChassisAction(chassisAction);
-		}
+		//if(!(chassisAction->Update(dt))){
+		//	RemoveChassisAction(chassisAction);
+		//}
 	}
 
 	Action* elevatorAction = elevatorActionQueue.front();
 	if(!(elevatorActionQueue.empty())){
-		if(!(elevatorAction->Update(dt))){
-			RemoveElevatorAction(elevatorAction);
-		}
+		//if(!(elevatorAction->Update(dt))){
+		//	RemoveElevatorAction(elevatorAction);
+		//}
 	}
 
 	CRITICAL_REGION(chassisBufferLock);
@@ -371,8 +471,8 @@ intern I32 FastThreadRuntime(U32 targetHz){
 #if DISABLE_FAST_THREAD
 #else
 	F64 targetMSPerFrame = 1000.0 / targetHz;
-	F64 startTime = SystemTime();
-	F64 lastTime = SystemTime();
+	F64 startTime = elon->elonMemory.SystemTime();
+	F64 lastTime = elon->elonMemory.SystemTime();
 
 	while(IsFastThreadStarted()){
 		if(IsFastThreadRunning()){
@@ -384,15 +484,15 @@ intern I32 FastThreadRuntime(U32 targetHz){
 
 		}
 		//Time processing
-		F64 workMSElapsed = SystemTime() - lastTime;
+		F64 workMSElapsed = elon->elonMemory.SystemTime() - lastTime;
 		if(workMSElapsed < targetMSPerFrame){
 			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
-			F64 testMSElapsedForFrame = SystemTime() - lastTime;
+			F64 testMSElapsedForFrame = elon->elonMemory.SystemTime() - lastTime;
 			if(testMSElapsedForFrame >= targetMSPerFrame){
-				Cerr("Fast Thread waited too long.");
+				elon->elonMemory.Cerr("Fast Thread waited too long.");
 			}else{
 				do{
-					workMSElapsed = SystemTime() - lastTime;
+					workMSElapsed = elon->elonMemory.SystemTime() - lastTime;
 				} while(workMSElapsed <= targetMSPerFrame);
 			}
 		}else{
@@ -400,7 +500,7 @@ intern I32 FastThreadRuntime(U32 targetHz){
 			//TODO: Log
 		}
 
-		F64 endTime = SystemTime();
+		F64 endTime = elon->elonMemory.SystemTime();
 		F64 frameTimeMS = endTime - lastTime;
 		lastTime = endTime;
 		F64 Hz = 1000.0/ frameTimeMS;
@@ -409,11 +509,11 @@ intern I32 FastThreadRuntime(U32 targetHz){
 		//COUT("Last Fast Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
 	}
 
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	F64 totalTimeElapsedSeconds = (elon->elonMemory.SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	Cout("[ELON] Total Fast Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
+	elon->elonMemory.Cout("[ELON] Total Fast Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
 #endif
 	return 0;
 }
@@ -422,7 +522,7 @@ intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallb
 #if DISABLE_CORE_THREAD
 #else
 	F64 targetMSPerFrame = 1000.0 / targetHz;
-	F64 lastTime = SystemTime();
+	F64 lastTime = elon->elonMemory.SystemTime();
 	while((elon->*runnerCallback)() && elon->IsEnabled()){
 		//Update Input
 		UpdateInput(&(elon->elonMemory));
@@ -435,21 +535,21 @@ intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallb
 		UpdateElevator(&(elon->elonMemory));
 
 		//Time processing
-		F64 workMSElapsed = SystemTime() - lastTime;
+		F64 workMSElapsed = elon->elonMemory.SystemTime() - lastTime;
 		if(workMSElapsed < targetMSPerFrame){
 			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
-			F64 testMSElapsedForFrame = SystemTime() - lastTime;
+			F64 testMSElapsedForFrame = elon->elonMemory.SystemTime() - lastTime;
 			if(testMSElapsedForFrame >= targetMSPerFrame){
-				Cerr("Core Thread waited too long.");
+				elon->elonMemory.Cerr("Core Thread waited too long.");
 			}else{
 				do{
-					workMSElapsed = SystemTime() - lastTime;
+					workMSElapsed = elon->elonMemory.SystemTime() - lastTime;
 				} while(workMSElapsed <= targetMSPerFrame);
 			}
 		}else{
 			//TODO: MISSED FRAME
 			//TODO: Log
-			Cout("Missed last Core Thread frame.");
+			elon->elonMemory.Cout("Missed last Core Thread frame.");
 		}
 
 		F64 endTime = SystemTime();
@@ -507,11 +607,11 @@ intern void UpdateInput(ELONMemory* memory){
 				state->gamepads[i].lx = lx / (1 - deadzone * nlxFactor);
 				state->gamepads[i].ly = ly / (1 - deadzone * nlyFactor);
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].lx = Sq(lx / (1 - deadzone * nlxFactor * Sgn(lx))) * Sgn(lx);
-				state->gamepads[i].ly = Sq(ly / (1 - deadzone * nlyFactor * Sgn(ly))) * Sgn(ly);
+				state->gamepads[i].lx = memory->Sq(lx / (1 - deadzone * nlxFactor * memory->Sgn(lx))) * memory->Sgn(lx);
+				state->gamepads[i].ly = memory->Sq(ly / (1 - deadzone * nlyFactor * memory->Sgn(ly))) * memory->Sgn(ly);
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].lx = Qu(lx / (1 - deadzone * nlxFactor * Sgn(lx))) * Sgn(lx);
-				state->gamepads[i].ly = Qu(ly / (1 - deadzone * nlyFactor * Sgn(ly))) * Sgn(ly);
+				state->gamepads[i].lx = memory->Qu(lx / (1 - deadzone * nlxFactor * memory->Sgn(lx))) * memory->Sgn(lx);
+				state->gamepads[i].ly = memory->Qu(ly / (1 - deadzone * nlyFactor * memory->Sgn(ly))) * memory->Sgn(ly);
 			}
 		}
 
@@ -534,14 +634,14 @@ intern void UpdateInput(ELONMemory* memory){
 			rx = nrxFactor * rmgntd;
 			ry = nryFactor * rmgntd;
 			if(state->gamepads[i].inputType == InputType::LINEAR){
-				state->gamepads[i].rx = rx / (1 - deadzone * nrxFactor * Sgn(rx));
-				state->gamepads[i].ry = ry / (1 - deadzone * nryFactor * Sgn(ry));
+				state->gamepads[i].rx = rx / (1 - deadzone * nrxFactor * memory->Sgn(rx));
+				state->gamepads[i].ry = ry / (1 - deadzone * nryFactor * memory->Sgn(ry));
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].rx = Sq(rx / (1 - deadzone * nrxFactor * Sgn(rx))) * Sgn(rx);
-				state->gamepads[i].ry = Sq(ry / (1 - deadzone * nryFactor * Sgn(ry))) * Sgn(ry);
+				state->gamepads[i].rx = memory->Sq(rx / (1 - deadzone * nrxFactor * memory->Sgn(rx))) * memory->Sgn(rx);
+				state->gamepads[i].ry = memory->Sq(ry / (1 - deadzone * nryFactor * memory->Sgn(ry))) * memory->Sgn(ry);
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].rx = Qu(rx / (1 - deadzone * nrxFactor * Sgn(rx))) * Sgn(rx);
-				state->gamepads[i].ry = Qu(ry / (1 - deadzone * nryFactor * Sgn(ry))) * Sgn(ry);
+				state->gamepads[i].rx = memory->Qu(rx / (1 - deadzone * nrxFactor * memory->Sgn(rx))) * memory->Sgn(rx);
+				state->gamepads[i].ry = memory->Qu(ry / (1 - deadzone * nryFactor * memory->Sgn(ry))) * memory->Sgn(ry);
 			}
 		}
 
@@ -551,11 +651,11 @@ intern void UpdateInput(ELONMemory* memory){
 			state->gamepads[i].lt = 0.0f;
 		}else{
 			if(state->gamepads[i].inputType == InputType::LINEAR){
-				state->gamepads[i].lt = (lt - triggerDeadzone * Sgn(lt))/(1.0f - triggerDeadzone);
+				state->gamepads[i].lt = (lt - triggerDeadzone * memory->Sgn(lt))/(1.0f - triggerDeadzone);
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].lt = Sq((lt - triggerDeadzone * Sgn(lt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].lt = memory->Sq((lt - triggerDeadzone * memory->Sgn(lt))/(1.0f - triggerDeadzone));
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].lt = Qu((lt - triggerDeadzone * Sgn(lt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].lt = memory->Qu((lt - triggerDeadzone * memory->Sgn(lt))/(1.0f - triggerDeadzone));
 			}
 		}
 
@@ -565,11 +665,11 @@ intern void UpdateInput(ELONMemory* memory){
 			state->gamepads[i].rt = 0.0f;
 		}else{
 			if(state->gamepads[i].inputType == InputType::LINEAR){
-				state->gamepads[i].rt = (rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone);
+				state->gamepads[i].rt = (rt - triggerDeadzone * memory->Sgn(rt))/(1.0f - triggerDeadzone);
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].rt = Sq((rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].rt = memory->Sq((rt - triggerDeadzone * memory->Sgn(rt))/(1.0f - triggerDeadzone));
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].rt = Qu((rt - triggerDeadzone * Sgn(rt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].rt = memory->Qu((rt - triggerDeadzone * memory->Sgn(rt))/(1.0f - triggerDeadzone));
 			}
 		}
 
@@ -602,6 +702,23 @@ ELON::ELON(){
 	elonMemory.Cout = Cout;
 	elonMemory.Cerr = Cerr;
 	elonMemory.SystemTime = SystemTime;
+	elonMemory.Clamp = Clamp;
+	elonMemory.Max = Max;
+	elonMemory.Sq = Sq;
+	elonMemory.Cu = Cu;
+	elonMemory.Qu = Qu;
+	elonMemory.NormalizeAlpha = NormalizeAlpha;
+	elonMemory.Lerp = Lerp;
+	elonMemory.Coserp = Coserp;
+	elonMemory.SystemMagnitudeInterpolation = SystemMagnitudeInterpolation;
+	elonMemory.PrincipalAngleDeg = PrincipalAngleDeg;
+	elonMemory.PrincipalAngleRad = PrincipalAngleRad;
+	elonMemory.MinDistAngleDeg = MinDistAngleDeg;
+	elonMemory.MinDistAngleRad = MinDistAngleRad;
+	elonMemory.AngularDistDeg = AngularDistDeg;
+	elonMemory.AngularDistRad = AngularDistRad;
+	elonMemory.Pow10 = Pow10;
+	elonMemory.DecToBin = DecToBin;
 
 	totalElonMemoryBlock = mmap(baseAddress, ELON_TOTAL_STORAGE_SIZE, PROT_READ | PROT_WRITE,
 								MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
