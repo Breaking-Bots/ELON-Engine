@@ -26,7 +26,7 @@ intern void InitializeElevator();
 /**
  * Writes motor value to motor
  */
-intern void UpdateElevator(ElevatorState* state);
+intern void UpdateElevator(ELONMemory* memory);
 
 /**
  * Free elevator memory
@@ -45,7 +45,7 @@ intern void InitializeChassis();
 /**
  * Writes motor values to motor controllers
  */
-intern void UpdateChassis(ChassisState* state);
+intern void UpdateChassis(ELONMemory* memory);
 
 /**
  * Free chassis memory
