@@ -2,8 +2,7 @@
 #define ELON_SOURCE_H
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 //TODO: Make this one type called ELON_CALLBACK

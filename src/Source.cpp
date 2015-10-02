@@ -6,6 +6,11 @@
  */
 
 #include "ELONEngine.h"
+#include <iostream>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 ELON_CALLBACK(TeleopCallback){
 
@@ -46,9 +51,14 @@ ELON_CALLBACK(TestCallback){
 }
 
 ELON_CALLBACK(AutonomousCallback){
-
+	std::cout << "Wow" << std::endl;
 }
+
 
 ELON_CALLBACK(DisabledCallback){
 
 }
+
+#ifdef __cplusplus
+}
+#endif

@@ -28,10 +28,6 @@
 
 #define GYRO_SENSITIVITY (0.006f)
 
-#define ELON_PERMANENT_STORAGE_SIZE (MiB(16))
-#define ELON_TRANSIENT_STORAGE_SIZE (MiB(16))
-#define ELON_TOTAL_STORAGE_SIZE (ELON_PERMANENT_STORAGE_SIZE + ELON_TRANSIENT_STORAGE_SIZE)
-
 #define deadzone (0.25f)
 #define deadzone2 (deadzone * deadzone)
 #define triggerDeadzone (0.06f)

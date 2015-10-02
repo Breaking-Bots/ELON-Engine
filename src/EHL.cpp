@@ -14,13 +14,19 @@
 #include <queue>
 #include <set>
 #include <algorithm>
+#include "stdio.h"
 #include "stdarg.h"
 #include "EHL.h"
+#include "ELONEngine.h"
 
 
 /*******************************************************************
  * Util						                                       *
  *******************************************************************/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 SYSTEM_TIME_CALLBACK(SystemTime){
 	return GetFPGATime() / 1000.0;
@@ -124,11 +130,19 @@ U64_CALLBACK_U32(DecToBin){
 	return bin;
 }
 
+#ifdef __cplusplus
+}
+#endif
+
 /*******************************************************************
  * Logging					                                       *
  *******************************************************************/
 
 MUTEX_ID loggingLock;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void InitializeLogging(){
 	loggingLock = initializeMutexNormal();
@@ -137,7 +151,7 @@ void InitializeLogging(){
 LOGGING_CALLBACK(Cout){
 	CRITICAL_REGION(loggingLock);
 		const char* formattedCStr = format.c_str();
-		char* fmt = new char[strlen(formattedCStr) + 9];
+		char* fmt = new char[strlen(formattedCStr) + 10];
 		strcpy(fmt, "[ELON] ");
 		strcpy(fmt + 7, formattedCStr);
 		strcpy(fmt + strlen(fmt), "\n");
@@ -152,7 +166,7 @@ LOGGING_CALLBACK(Cout){
 LOGGING_CALLBACK(Cerr){
 	CRITICAL_REGION(loggingLock);
 		const char* formattedCStr = format.c_str();
-		char* fmt = new char[strlen(formattedCStr) + 10];
+		char* fmt = new char[strlen(formattedCStr) + 11];
 		strcpy(fmt, "[ERROR] ");
 		strcpy(fmt + 8, formattedCStr);
 		strcpy(fmt + strlen(fmt), "\n");
@@ -169,9 +183,17 @@ void TerminateLogging(){
 	deleteMutex(loggingLock);
 }
 
+#ifdef __cplusplus
+}
+#endif
+
 /*******************************************************************
  * ELON Engine Management                                          *
  *******************************************************************/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct ELONEngine{
 	MODULE ELONEngine;
@@ -186,10 +208,10 @@ ELON_CALLBACK(ELONCallbackStub){
 
 }
 
-intern ELONEngine LoadELONEngine(){
+ELONEngine LoadELONEngine(){
 	ELONEngine result = {};
 
-	result.ELONEngine = dlopen("libELON.so", RTLD_NOW);
+	result.ELONEngine = dlopen("/home/lvuser/libELON.so", RTLD_NOW);
 	if(result.ELONEngine){
 		//Load real functions
 		result.TeleopCallback = (ELONCallback*)dlsym(result.ELONEngine, "TeleopCallback");
@@ -212,19 +234,24 @@ intern ELONEngine LoadELONEngine(){
 	return result;
 }
 
+#ifdef __cplusplus
+}
+#endif
+
 /*******************************************************************
  * Elevator		                                                   *
  *******************************************************************/
-
-glob Victor elevatorMotor(ELEVATOR_PORT);
+#if 1
+Victor* elevatorMotor;
 
 MUTEX_ID elevatorMotorLock;
 
-intern void InitializeElevator(){
+void InitializeElevator(){
 	elevatorMotorLock = initializeMutexNormal();
+	elevatorMotor = new Victor(ELEVATOR_PORT);
 }
 
-intern void UpdateElevator(ELONMemory* memory){
+void UpdateElevator(ELONMemory* memory){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	ElevatorState* state = scast<ElevatorState*>(&(elonState->elevatorState));
 	if(!state->isInitialized){
@@ -233,30 +260,32 @@ intern void UpdateElevator(ELONMemory* memory){
 		state->isInitialized = True;
 	}
 	CRITICAL_REGION(elevatorMotorLock);
-		elevatorMotor.Set(state->motorValue);
+		//elevatorMotor.Set(state->motorValue);
 	END_REGION;
 }
 
-intern void TerminateElevator(){
+void TerminateElevator(){
+	delete elevatorMotor;
 	deleteMutex(elevatorMotorLock);
 }
-
+#endif
 /*******************************************************************
  * Chassis		                                                   *
  *******************************************************************/
-
-glob Talon talonFL(CHASSIS_PORT_FL);
-glob Talon talonBL(CHASSIS_PORT_BL);
-glob Talon talonFR(CHASSIS_PORT_FR);
-glob Talon talonBR(CHASSIS_PORT_BR);
+#if 1
+Talon* motors[CHASSIS_NUM_MOTORS];
 
 MUTEX_ID chassisMotorLock;
 
-intern void InitializeChassis(){
+void InitializeChassis(){
 	chassisMotorLock = initializeMutexNormal();
+	motors[0] = new Talon(CHASSIS_PORT_FL);
+	motors[1] = new Talon(CHASSIS_PORT_BL);
+	motors[2] = new Talon(CHASSIS_PORT_FR);
+	motors[3] = new Talon(CHASSIS_PORT_BR);
 }
 
-intern void UpdateChassis(ELONMemory* memory){
+void UpdateChassis(ELONMemory* memory){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	ChassisState* state = scast<ChassisState*>(&(elonState->chassisState));
 
@@ -269,28 +298,31 @@ intern void UpdateChassis(ELONMemory* memory){
 		state->isInitialized = True;
 	}
 	CRITICAL_REGION(chassisMotorLock);
-		talonFL.Set(state->motorValues[0]);
-		talonBL.Set(state->motorValues[1]);
-		talonFR.Set(state->motorValues[2]);
-		talonBR.Set(state->motorValues[3]);
+		for(U32 i = 0; i < CHASSIS_NUM_MOTORS; i++){
+			motors[i]->Set(state->motorValues[i]);
+		}
 	END_REGION;
 }
 
-intern void TerminateChassis(){
+void TerminateChassis(){
+	for(U32 i = 0; i < CHASSIS_NUM_MOTORS; i++){
+		delete motors[i];
+	}
 	deleteMutex(chassisMotorLock);
 }
-
+#endif
 /*******************************************************************
  * Thread Space                                                    *
  *******************************************************************/
+#if 0
 
-glob MUTEX_ID startedFastThreadLock;
-glob MUTEX_ID runningFastThreadLock;
-glob MUTEX_ID chassisBufferLock;
-glob MUTEX_ID elevatorBufferLock;
+MUTEX_ID startedFastThreadLock;
+MUTEX_ID runningFastThreadLock;
+MUTEX_ID chassisBufferLock;
+MUTEX_ID elevatorBufferLock;
 
-glob B32 isFastThreadStarted;
-glob B32 isFastThreadRunning;
+B32 isFastThreadStarted;
+B32 isFastThreadRunning;
 //TODO: Remove dynamic allocation
 typedef std::vector<Action*> ActionVector;
 typedef std::vector<Action*>::const_iterator ActionBufferIterator;
@@ -299,14 +331,14 @@ typedef std::set<Action*> ActionSet;
 typedef std::set<Action*>::const_iterator ActionSetIterator;
 typedef std::set<Action*>::iterator ActionSetIndex;
 
-glob ActionVector chassisActionBuffer;
-glob ActionVector elevatorActionBuffer;
-glob ActionQueue chassisActionQueue;
-glob ActionSet chassisActionSet;
-glob ActionQueue elevatorActionQueue;
-glob ActionSet elevatorActionSet;
+ActionVector chassisActionBuffer;
+ActionVector elevatorActionBuffer;
+ActionQueue chassisActionQueue;
+ActionSet chassisActionSet;
+ActionQueue elevatorActionQueue;
+ActionSet elevatorActionSet;
 
-intern void InitializeThreadSpace(){
+void InitializeThreadSpace(){
 	startedFastThreadLock = initializeMutexNormal();
 	runningFastThreadLock = initializeMutexNormal();
 	chassisBufferLock = initializeMutexNormal();
@@ -315,7 +347,7 @@ intern void InitializeThreadSpace(){
 	isFastThreadRunning = True;
 }
 
-intern void TerminateThreadSpace(){
+void TerminateThreadSpace(){
 	isFastThreadStarted = False;
 	isFastThreadRunning = False;
 	takeMutex(elevatorBufferLock);
@@ -328,43 +360,43 @@ intern void TerminateThreadSpace(){
 	deleteMutex(startedFastThreadLock);
 }
 
-intern B32 IsFastThreadStarted(){
+B32 IsFastThreadStarted(){
 	CRITICAL_REGION(startedFastThreadLock);
 		return isFastThreadStarted;
 	END_REGION;
 }
 
-intern B32 IsFastThreadRunning(){
+B32 IsFastThreadRunning(){
 	CRITICAL_REGION(runningFastThreadLock);
 		return isFastThreadRunning;
 	END_REGION;
 }
 
-intern void PauseFastThread(){
+void PauseFastThread(){
 	CRITICAL_REGION(runningFastThreadLock);
 		isFastThreadRunning = False;
 	END_REGION;
 }
 
-intern void ResumeFastThread(){
+void ResumeFastThread(){
 	CRITICAL_REGION(runningFastThreadLock);
 		isFastThreadRunning = True;
 	END_REGION;
 }
 
-intern void StartFastThread(){
+void StartFastThread(){
 	CRITICAL_REGION(startedFastThreadLock);
 		isFastThreadStarted = True;
 	END_REGION;
 }
 
-intern void StopFastThread(){
+void StopFastThread(){
 	CRITICAL_REGION(startedFastThreadLock);
 		isFastThreadStarted = False;
 	END_REGION;
 }
 
-intern void BufferChassisAction(Action* action){
+void BufferChassisAction(Action* action){
 	CRITICAL_REGION(chassisBufferLock);
 		if(std::find(chassisActionBuffer.begin(), chassisActionBuffer.end(), action) != chassisActionBuffer.end()){
 			return;
@@ -373,7 +405,7 @@ intern void BufferChassisAction(Action* action){
 	END_REGION;
 }
 
-intern void BufferElevatorAction(Action* action){
+void BufferElevatorAction(Action* action){
 	CRITICAL_REGION(elevatorBufferLock);
 		if(std::find(elevatorActionBuffer.begin(), elevatorActionBuffer.end(), action) != elevatorActionBuffer.end()){
 			return;
@@ -382,7 +414,7 @@ intern void BufferElevatorAction(Action* action){
 	END_REGION;
 }
 
-intern void RemoveChassisAction(Action* action){
+void RemoveChassisAction(Action* action){
 	if(!action){
 		return;
 	}
@@ -395,7 +427,7 @@ intern void RemoveChassisAction(Action* action){
 	//action->Removed();
 }
 
-intern void RemoveElevatorAction(Action* action){
+void RemoveElevatorAction(Action* action){
 	if(!action){
 		return;
 	}
@@ -408,7 +440,7 @@ intern void RemoveElevatorAction(Action* action){
 	//action->Removed();
 }
 
-intern void HandleChassisBufferAdditions(Action* action){
+void HandleChassisBufferAdditions(Action* action){
 	if(!action){
 		return;
 	}
@@ -422,7 +454,7 @@ intern void HandleChassisBufferAdditions(Action* action){
 
 }
 
-intern void HandleElevatorBufferAdditions(Action* action){
+void HandleElevatorBufferAdditions(Action* action){
 	if(!action){
 		return;
 	}
@@ -436,7 +468,7 @@ intern void HandleElevatorBufferAdditions(Action* action){
 
 }
 
-intern void ExecuteActionQueues(F32 dt){
+void ExecuteActionQueues(F32 dt){
 
 	Action* chassisAction = chassisActionQueue.front();
 	if(!(chassisActionQueue.empty())){
@@ -467,7 +499,7 @@ intern void ExecuteActionQueues(F32 dt){
 	END_REGION;
 }
 
-intern I32 FastThreadRuntime(U32 targetHz){
+I32 FastThreadRuntime(U32 targetHz){
 #if DISABLE_FAST_THREAD
 #else
 	F64 targetMSPerFrame = 1000.0 / targetHz;
@@ -518,38 +550,40 @@ intern I32 FastThreadRuntime(U32 targetHz){
 	return 0;
 }
 
-intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallback* executableCallback, ELON* elon){
+#endif
+
+I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallback* executableCallback, ELON* elon){
 #if DISABLE_CORE_THREAD
 #else
 	F64 targetMSPerFrame = 1000.0 / targetHz;
-	F64 lastTime = elon->elonMemory.SystemTime();
+	F64 lastTime = elon->elonMemory->SystemTime();
 	while((elon->*runnerCallback)() && elon->IsEnabled()){
 		//Update Input
-		UpdateInput(&(elon->elonMemory));
+		UpdateInput(elon->elonMemory);
 
 		//Executing user function
-		(*executableCallback)(&(elon->elonMemory));
+		(*executableCallback)(elon->elonMemory);
 
 		//Temporary Subsystem updating while fast thread is closed
-		UpdateChassis(&(elon->elonMemory));
-		UpdateElevator(&(elon->elonMemory));
+		UpdateChassis(elon->elonMemory);
+		UpdateElevator(elon->elonMemory);
 
 		//Time processing
-		F64 workMSElapsed = elon->elonMemory.SystemTime() - lastTime;
+		F64 workMSElapsed = elon->elonMemory->SystemTime() - lastTime;
 		if(workMSElapsed < targetMSPerFrame){
 			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
-			F64 testMSElapsedForFrame = elon->elonMemory.SystemTime() - lastTime;
+			F64 testMSElapsedForFrame = elon->elonMemory->SystemTime() - lastTime;
 			if(testMSElapsedForFrame >= targetMSPerFrame){
-				elon->elonMemory.Cerr("Core Thread waited too long.");
+				elon->elonMemory->Cerr("Core Thread waited too long.");
 			}else{
 				do{
-					workMSElapsed = elon->elonMemory.SystemTime() - lastTime;
+					workMSElapsed = elon->elonMemory->SystemTime() - lastTime;
 				} while(workMSElapsed <= targetMSPerFrame);
 			}
 		}else{
 			//TODO: MISSED FRAME
 			//TODO: Log
-			elon->elonMemory.Cout("Missed last Core Thread frame.");
+			elon->elonMemory->Cout("Missed last Core Thread frame.");
 		}
 
 		F64 endTime = SystemTime();
@@ -576,9 +610,9 @@ intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallb
 #define _RY 5
 #define NUM_BUTTONS 10
 
-glob DriverStation* ds; //Driverstation where gamepads are connected
+DriverStation* ds; //Driverstation where gamepads are connected
 
-intern void UpdateInput(ELONMemory* memory){
+void UpdateInput(ELONMemory* memory){
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
 
 	for(U32 i = 0; i < NUM_GAMEPADS; i++){
@@ -684,10 +718,140 @@ intern void UpdateInput(ELONMemory* memory){
  *******************************************************************/
 
 ELONEngine engine;
-ELON* elon;
 
-ELON::ELON(){
+ELON::ELON(ELONMemory* memory): elonMemory(memory){
 	Cout("Initializing");
+
+	//Thread startup
+	//InitializeThreadSpace();
+	//fastThread = new Task("FastThread", (FUNCPTR)(&FastThreadRuntime), 100, KiB(5));
+#if DISABLE_FAST_THREAD
+#else
+	fastThread->Start(FAST_THREAD_HZ);
+#endif
+	//StartFastThread();
+	//PauseFastThread();
+}
+
+void ELON::RobotInit(){
+	//System startup
+
+	//Chassis initialization
+	InitializeChassis();
+
+	//Elevator initialization
+	InitializeElevator();
+}
+
+void ELON::Autonomous(){
+	F64 startTime = SystemTime();
+	//ResumeFastThread();
+
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsAutonomous),
+					 engine.AutonomousCallback, this);
+
+	//PauseFastThread();
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	Cout("Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
+}
+
+void ELON::OperatorControl(){
+	F64 startTime = SystemTime();
+	//ResumeFastThread();
+
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsOperatorControl),
+					 engine.TeleopCallback, this);
+
+	//PauseFastThread();
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) / 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	Cout("Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
+}
+
+void ELON::Test(){
+	F64 startTime = SystemTime();
+	//ResumeFastThread();
+
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
+					 engine.TestCallback, this);
+
+	//PauseFastThread();
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	Cout("Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
+}
+
+void ELON::Disabled(){
+	F64 startTime = SystemTime();
+
+	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
+					 engine.DisabledCallback, this);
+
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	Cout("Total Disabled time: %dm%.04fs.", totalMinutes, totalSeconds);
+}
+
+ELON::~ELON(){
+	//System shutdown
+	TerminateElevator();
+	TerminateChassis();
+
+	//Thread shutdown
+	//StopFastThread();
+	fastThread->Stop();
+	//TerminateThreadSpace();
+	delete fastThread;
+
+	//Memory shutdown
+	//munmap(totalElonMemoryBlock, ELON_TOTAL_STORAGE_SIZE);
+
+	//Logging shutdown
+	TerminateLogging();
+}
+
+/*******************************************************************
+ * Main function                                                   *
+ *******************************************************************/
+
+U64 KiB(U64 sizeBytes){
+	return sizeBytes * 1024LL;
+}
+
+U64 MiB(U64 sizeBytes){
+	return KiB(sizeBytes) * 1024LL;
+}
+
+U64 GiB(U64 sizeBytes){
+	return MiB(sizeBytes) * 1024LL;
+}
+
+U64 TiB(U64 sizeBytes){
+	return TiB(sizeBytes) * 1024LL;
+}
+
+U32 ELON_PERMANENT_STORAGE_SIZE = (MiB(16));
+U32 ELON_TRANSIENT_STORAGE_SIZE = (MiB(16));
+U32 ELON_TOTAL_STORAGE_SIZE = (ELON_PERMANENT_STORAGE_SIZE + ELON_TRANSIENT_STORAGE_SIZE);
+
+I32 main() {
+	//Logging startup
+	InitializeLogging();
+	Cout("Logging Initialized!");
+
+
+	//Memory startup
+	void* totalElonMemoryBlock = NULL;
+	ELONMemory elonMemory;
 
 #if 0
 	void* baseAddress = rcast<void*>(U32((GiB(4) - 1) - ((ELON_TOTAL_STORAGE_SIZE / getpagesize()) + 1) * getpagesize()));
@@ -695,7 +859,6 @@ ELON::ELON(){
 	void* baseAddress = NULL;
 #endif
 
-	//Memory startup
 	elonMemory = {};
 	elonMemory.permanentStorageSize = ELON_PERMANENT_STORAGE_SIZE;
 	elonMemory.transientStorageSize = ELON_TRANSIENT_STORAGE_SIZE;
@@ -724,128 +887,24 @@ ELON::ELON(){
 								MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
 
 	if(totalElonMemoryBlock){
-		Cout("Total ELON memory successfully allocated with size of %u Bytes", ELON_TOTAL_STORAGE_SIZE);
+		Cout("Total ELON memory successfully allocated with size of %d Bytes", ELON_TOTAL_STORAGE_SIZE);
 	}else{
-		Cerr("Total ELON memory allocation failed with size of %u Bytes", ELON_TOTAL_STORAGE_SIZE);
+		Cerr("Total ELON memory allocation failed with size of %d Bytes", ELON_TOTAL_STORAGE_SIZE);
 	}
 
 	elonMemory.permanentStorage = totalElonMemoryBlock;
 	elonMemory.transientStorage = ((U8*)elonMemory.permanentStorage + elonMemory.permanentStorageSize);
-
-	//Thread startup
-	InitializeThreadSpace();
-	fastThread = new Task("FastThread", (FUNCPTR)(&FastThreadRuntime), 100, KiB(5));
-#if DISABLE_FAST_THREAD
-#else
-	fastThread->Start(FAST_THREAD_HZ);
-#endif
-	StartFastThread();
-	PauseFastThread();
-}
-
-void ELON::RobotInit(){
-	//System startup
-
-	//Chassis initialization
-	InitializeChassis();
-
-	//Elevator initialization
-	InitializeElevator();
-}
-
-void ELON::Autonomous(){
-	F64 startTime = SystemTime();
-	ResumeFastThread();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsAutonomous),
-					 engine.AutonomousCallback, this);
-
-	PauseFastThread();
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-void ELON::OperatorControl(){
-	F64 startTime = SystemTime();
-	ResumeFastThread();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsOperatorControl),
-					 engine.TeleopCallback, this);
-
-	PauseFastThread();
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) / 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-void ELON::Test(){
-	F64 startTime = SystemTime();
-	ResumeFastThread();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
-					 engine.TestCallback, this);
-
-	PauseFastThread();
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-void ELON::Disabled(){
-	F64 startTime = SystemTime();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
-					 engine.DisabledCallback, this);
-
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Disabled time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-ELON::~ELON(){
-	//System shutdown
-	TerminateElevator();
-	TerminateChassis();
-
-	//Thread shutdown
-	StopFastThread();
-	fastThread->Stop();
-	TerminateThreadSpace();
-	delete fastThread;
-
-	//Memory shutdown
-	munmap(totalElonMemoryBlock, ELON_TOTAL_STORAGE_SIZE);
-
-	//Logging shutdown
-	TerminateLogging();
-}
-
-/*******************************************************************
- * Main function                                                   *
- *******************************************************************/
-
-I32 main() {
 	//ELONEngine startup
 	engine = LoadELONEngine();
 
-	//Logging startup
-	InitializeLogging();
 	if (!HALInitialize()){
 		Cerr("HAL could not be initialized.");
 		return -1;
 	}
 	HALReport(HALUsageReporting::kResourceType_Language, HALUsageReporting::kLanguage_CPlusPlus);
 
-	elon = new ELON();
+	ELON* elon = new ELON(&elonMemory);
 	RobotBase::robotSetup(elon);
+	Cout("Does this run?");
 	return 0;
 }

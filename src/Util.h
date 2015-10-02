@@ -61,11 +61,6 @@ typedef void* MODULE;
 #define EPSILON (0.00001f)
 #define EZERO (0.000000001f)
 
-#define KiB(value) ((value)*1024LL)
-#define MiB(value) (KiB(value)*1024LL)
-#define GiB(value) (MiB(value)*1024LL)
-#define TiB(value) (GiB(value)*1024LL)
-
 #define sizeofArr(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
 #define AlignPo2(value, alignment) ((value + ((alignment) - 1)) & ~((alignment) - 1))

@@ -5,6 +5,10 @@
 #include "Properties.h"
 #include "Input.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ELONMemory;
 struct ELONState;
 struct ChassisState;
@@ -63,7 +67,9 @@ struct ELONState{
 	Gamepad gamepads[NUM_GAMEPADS];
 };
 
-
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif

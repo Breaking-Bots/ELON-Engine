@@ -1,7 +1,6 @@
 #ifndef ELON_H
 #define ELON_H
 
-#include "Util.h"
 #include "ELONEngine.h"
 
 class Task;
@@ -21,17 +20,17 @@ struct ELONEngine;
 /**
  * Initialize elevator motor
  */
-intern void InitializeElevator();
+void InitializeElevator();
 
 /**
  * Writes motor value to motor
  */
-intern void UpdateElevator(ELONMemory* memory);
+void UpdateElevator(ELONMemory* memory);
 
 /**
  * Free elevator memory
  */
-intern void TerminateElevator();
+void TerminateElevator();
 
 /*******************************************************************
  * Chassis		                                                   *
@@ -40,17 +39,17 @@ intern void TerminateElevator();
 /**
  * Initialize chassis and motors
  */
-intern void InitializeChassis();
+void InitializeChassis();
 
 /**
  * Writes motor values to motor controllers
  */
-intern void UpdateChassis(ELONMemory* memory);
+void UpdateChassis(ELONMemory* memory);
 
 /**
  * Free chassis memory
  */
-intern void TerminateChassis();
+void TerminateChassis();
 
 /*******************************************************************
  * Thread Space                                                    *
@@ -59,81 +58,81 @@ intern void TerminateChassis();
 /**
  * Initialize the thread space
  */
-intern void InitializeThreadSpace();
+void InitializeThreadSpace();
 
 /**
  * Terminates the thread space
  */
-intern void TerminateThreadSpace();
+void TerminateThreadSpace();
 
 /**
  * Checks if fast thread has started
  * Thread safe
  */
-intern B32 IsFastThreadStarted();
+B32 IsFastThreadStarted();
 
 /**
  * Checks if fast thread is running
  * Thread safe
  */
-intern B32 IsFastThreadRunning();
+B32 IsFastThreadRunning();
 
 /**
  * Pauses fast thread
  * Thread safe
  */
-intern void PauseFastThread();
+void PauseFastThread();
 
 /**
  * Resumes fast thread
  * Thread safe
  */
-intern void ResumeFastThread();
+void ResumeFastThread();
 
 /**
  * Starts fast thread
  * Thread safe
  */
-intern void StartFastThread();
+void StartFastThread();
 
 /**
  * Stops fast thread
  * Thread safe
  */
-intern void StopFastThread();
+void StopFastThread();
 
 /**
  * Add an object to the chassis action buffer
  * Thread safe
  */
-intern void BufferChassisAction(Action* action);
+void BufferChassisAction(Action* action);
 
 /**
  * Add an object to the elevator action buffer
  * Thread safe
  */
-intern void BufferElevatorAction(Action* action);
+void BufferElevatorAction(Action* action);
 
 /**
  * Removes action from chassis' queue of actions
  */
-intern void RemoveChassisAction(Action* action);
+void RemoveChassisAction(Action* action);
 
 /**
  * Removes action from elevator's queue of actions
  */
-intern void RemoveElevatorAction(Action* action);
+void RemoveElevatorAction(Action* action);
 
 /**
  * Executes actions in queues and adds the buffered actions to global queues
  * Thread safe
  */
-intern void ExecuteActionQueues(F32 dt);
+void ExecuteActionQueues(F32 dt);
 
 /**
  * Function callback for running the fast thread runtime on a separate thread
  */
-intern I32 FastThreadRuntime(U32 targetHz);
+I32 FastThreadRuntime(U32 targetHz);
 
 /**
  * Runtime for core thread, runs slower than the fast thread
@@ -142,7 +141,7 @@ intern I32 FastThreadRuntime(U32 targetHz);
  * frequency provided
  * elon is the robot object running
  */
-intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallback* executableCallback, ELON* elon);
+I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallback* executableCallback, ELON* elon);
 
 /*******************************************************************
  * Input					                                       *
@@ -151,20 +150,19 @@ intern I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallb
 /**
  * Updates the gamepads from data recieved from driver station
  */
-intern void UpdateInput(ELONMemory* memory);
+void UpdateInput(ELONMemory* memory);
 
 /*******************************************************************
  * ELON Class				                                       *
  *******************************************************************/
 
 class ELON : public SampleRobot{
-	void* totalElonMemoryBlock;
 	//TODO: Make these values
 	Task* fastThread;
 public:
-	ELONMemory elonMemory;
+	ELONMemory* elonMemory;
 
-	ELON();
+	ELON(ELONMemory* memory);
 
 	void RobotInit();
 
