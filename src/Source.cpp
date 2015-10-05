@@ -5,14 +5,22 @@
  *      Author: Zaeem
  */
 
-#include "ELONEngine.h"
+#include "../inc/ELONEngine.h"
 #include <iostream>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+ELON_CALLBACK(InitTeleop){
+
+}
+
 ELON_CALLBACK(TeleopCallback){
+
+}
+
+ELON_CALLBACK(InitTest){
 
 }
 
@@ -50,10 +58,17 @@ ELON_CALLBACK(TestCallback){
 
 }
 
+ELON_CALLBACK(InitAutonomous){
+
+}
+
 ELON_CALLBACK(AutonomousCallback){
 	std::cout << "Wow" << std::endl;
 }
 
+ELON_CALLBACK(InitDisabled){
+
+}
 
 ELON_CALLBACK(DisabledCallback){
 

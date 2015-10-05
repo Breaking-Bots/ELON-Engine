@@ -40,4 +40,7 @@ Thumbs.db
 ###########################
 .settings/
 Debug/
+temp/
+bin/
+.externalToolBuilders
 

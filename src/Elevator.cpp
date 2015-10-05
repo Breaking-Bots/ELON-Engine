@@ -5,7 +5,7 @@
  *      Author: Zaeem
  */
 
-#include "ELONEngine.h"
+#include "../inc/ELONEngine.h"
 
 void Elevate(ELONMemory* memory, F32 speed){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);

@@ -9,130 +9,21 @@
 
 #include "WPILib.h"
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #include <dlfcn.h>
 #include <vector>
 #include <queue>
 #include <set>
 #include <algorithm>
+#include <unistd.h>
 #include "stdio.h"
 #include "stdarg.h"
-#include "EHL.h"
-#include "ELONEngine.h"
+#include "../inc/EHL.h"
+#include "../inc/ELONEngine.h"
 
 
-/*******************************************************************
- * Util						                                       *
- *******************************************************************/
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-SYSTEM_TIME_CALLBACK(SystemTime){
-	return GetFPGATime() / 1000.0;
-}
-
-F32_CALLBACK_F32_F32_F32(Clamp){
-	if(a < b) return b;
-	else if(a > c) return c;
-	return a;
-}
-
-
-F32_CALLBACK_F32_F32(Max){
-	if(b > a) return b;
-	return a;
-}
-
-
-F32_CALLBACK_F32(Sq){
-	return a * a;
-}
-
-F32_CALLBACK_F32(Cu){
-	return a * a * a;
-}
-
-
-F32_CALLBACK_F32(Qu){
-	return a * a * a * a;
-}
-
-
-I32_CALLBACK_F32(Sgn){
-	return (0 < a) - (a < 0);
-}
-
-
-F32_CALLBACK_F32(NormalizeAlpha){
-	return 0.5f * a + 0.5f;
-}
-
-
-F32_CALLBACK_F32_F32_F32(Lerp){
-	return (1.0f - c) * a + c * b;
-}
-
-
-F32_CALLBACK_F32_F32_F32(Coserp){
-	F32 alpha = (1.0f - cosf(c * PI)) * 0.5f;
-	return (1.0f - alpha) * a + alpha * b;
-}
-
-
-F32_CALLBACK_F32_F32_F32_F32(SystemMagnitudeInterpolation){
-	if(d < 0.0f){
-		d++;
-		return Coserp(a, b, d);
-	}else{
-		return Coserp(b, c, d);
-	}
-}
-
-F32_CALLBACK_F32(PrincipalAngleDeg){
-	return a - (I32)(a/360) * 360; //TODO: Test
-}
-
-F32_CALLBACK_F32(PrincipalAngleRad){
-	return a - (I32)(a/TAU) * TAU; //TODO: Test
-}
-
-F32_CALLBACK_F32(MinDistAngleDeg){
-	return (a - (I32)(a/360) * 360) - 180.0f; //TODO: Test
-}
-
-F32_CALLBACK_F32(MinDistAngleRad){
-	return (a - (I32)(a/TAU) * TAU) - PI; //TODO: Test
-}
-
-F32_CALLBACK_F32_F32(AngularDistDeg){
-	return MinDistAngleDeg(b - a);
-}
-
-F32_CALLBACK_F32_F32(AngularDistRad){
-	return MinDistAngleRad(b - a);
-}
-
-U64_CALLBACK_U32(Pow10){
-	U64 result = 1;
-	for(U32 i = 0; i < a; i++){
-		result *= 10;
-	}
-	return result;
-}
-
-U64_CALLBACK_U32(DecToBin){
-	U64 bin = 0;
-	for(int i = 0; a != 0; i++){
-		bin += Pow10(i) * (a % 2);
-		a /= 2;
-	}
-	return bin;
-}
-
-#ifdef __cplusplus
-}
-#endif
 
 /*******************************************************************
  * Logging					                                       *
@@ -188,6 +79,253 @@ void TerminateLogging(){
 #endif
 
 /*******************************************************************
+ * Util						                                       *
+ *******************************************************************/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Get FGPA Time in milliseconds
+ */
+SYSTEM_TIME_CALLBACK(SystemTime){
+	return GetFPGATime() / 1000.0;
+}
+
+/**
+ * Clamps value of a between b and c
+ */
+F32_CALLBACK_F32_F32_F32(Clamp){
+	if(a < b) return b;
+	else if(a > c) return c;
+	return a;
+}
+
+/**
+ * Returns the greater value of a and b
+ */
+F32_CALLBACK_F32_F32(Max){
+	if(b > a) return b;
+	return a;
+}
+
+/**
+ * Returns the value of x squared
+ */
+F32_CALLBACK_F32(Sq){
+	return x * x;
+}
+
+/**
+ * Returns the value of x cubed
+ */
+F32_CALLBACK_F32(Cu){
+	return x * x * x;
+}
+
+
+/**
+ * Returns the value of x quarted
+ */
+F32_CALLBACK_F32(Qu){
+	return x * x * x * x;
+}
+
+/**
+ * Return sign of x
+ */
+I32_CALLBACK_F32(Sgn){
+	return (0 < x) - (x < 0);
+}
+
+/**
+ * Normalizes x of interval [-1,1] to interval [0,1]
+ */
+F32_CALLBACK_F32(NormalizeAlpha){
+	return 0.5f * x + 0.5f;
+}
+
+/**
+ * Linearly interpolates between a and b in the scale of value c of interval [0,1]
+ */
+F32_CALLBACK_F32_F32_F32(Lerp){
+	return (1.0f - c) * a + c * b;
+}
+
+/**
+ * Calculates cosine interpolation between a and b in the scale of value c of interval [0,1]
+ */
+F32_CALLBACK_F32_F32_F32(Coserp){
+	F32 alpha = (1.0f - cosf(c * PI)) * 0.5f;
+	return (1.0f - alpha) * a + alpha * b;
+}
+
+/**
+ * Calculates the system magnitude by interpolation between a, b, c in the scale of d of interval [-1,1]
+ */
+F32_CALLBACK_F32_F32_F32_F32(SystemMagnitudeInterpolation){
+	if(d < 0.0f){
+		d++;
+		return Coserp(a, b, d);
+	}else{
+		return Coserp(b, c, d);
+	}
+}
+
+/**
+ * Calculates principle angle in degrees from interval [-INFINITY,INFINITY] to interval [0,360]
+ */
+F32_CALLBACK_F32(PrincipalAngleDeg){
+	return x - (I32)(x/360) * 360; //TODO: Test
+}
+
+/**
+ * Calculates principle angle in radians from interval [-INFINITY,INFINITY] to interval [0,TAU]
+ */
+F32_CALLBACK_F32(PrincipalAngleRad){
+	return x - (I32)(x/TAU) * TAU; //TODO: Test
+}
+
+/**
+ * Calculate minimum distance angle in degrees from interval [-INFINITY,INFINITY] to interval [-180,180]
+ */
+F32_CALLBACK_F32(MinDistAngleDeg){
+	return (x - (I32)(x/360) * 360) - 180.0f; //TODO: Test
+}
+
+/**
+ * Calculate minimum distance angle in radians from interval [-INFINITY,INFINITY] to interval [-PI,PI]
+ */
+F32_CALLBACK_F32(MinDistAngleRad){
+	return (x - (I32)(x/TAU) * TAU) - PI; //TODO: Test
+}
+
+/**
+ * Calculates the shortest angular distance in degrees between two angles of interval [-INFINITY,INFINITY] to [-180,180]
+ */
+F32_CALLBACK_F32_F32(AngularDistDeg){
+	return MinDistAngleDeg(b - a);
+}
+
+/**
+ * Calculates the shortest angular distance in radians between two angles of interval [-INFINITY,INFINITY] to [-PI,PI]
+ */
+F32_CALLBACK_F32_F32(AngularDistRad){
+	return MinDistAngleRad(b - a);
+}
+
+/**
+ * Return 10 raised to the exponent of 10
+ */
+U64_CALLBACK_U32(Pow10){
+	U64 result = 1;
+	for(U32 i = 0; i < x; i++){
+		result *= 10;
+	}
+	return result;
+}
+
+/**
+ * Converts decimal integer to binary (buggy)
+ */
+U64_CALLBACK_U32(DecToBin){
+	U64 bin = 0;
+	for(int i = 0; a != 0; i++){
+		bin += Pow10(i) * (x % 2);
+		x /= 2;
+	}
+	return bin;
+}
+
+/**
+ * Represents file
+ */
+struct File{
+	void* data;
+	U32 size;
+};
+
+/**
+ * Reads entire file and returns File struct
+ */
+File ReadEntireFile(std::string filename){
+	File result = {};
+	struct stat statBuffer;
+
+	I32 fileDescriptor = open(filename.c_str(), O_RDONLY);
+	if(fileDescriptor != -1){
+		fstat(fileDescriptor, &statBuffer);
+		result.size = statBuffer.st_size;
+		if(result.size){
+			Cout("File opened: \"%s\"; Size: %lu", filename, result.size);
+			result.data = mmap(NULL, result.size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileDescriptor, 0);
+			if(result.data != MAP_FAILED){
+				U32 bytesRead = read(fileDescriptor, result.data, result.size);
+				if(bytesRead != result.size){
+					Cerr("File allocation failed: File: \"%s\"; Size %lu", filename, result.size);
+					munmap(result.data, result.size);
+					result.data = NULL;
+					result.size = 0;
+				}
+			}else{
+				Cerr("File request allocation failed: File \"%s\"; Size %lu", filename, result.size);
+			}
+		}else{
+			Cerr("File request failed with size of 0; File: \"%s\"", filename);
+		}
+	}
+	close(fileDescriptor);
+
+}
+
+/**
+ * Writes memory to file of given filename, creates file if doesnt exist
+ */
+B32 WriteEntireFile(std::string filename, U32 memorySize, void* memory){
+	B32 result = false;
+
+	I32 fileDescriptor = open(filename.c_str(), O_WRONLY | O_CREAT);
+	if(fileDescriptor != -1){
+		U32 bytesWritten = write(fileDescriptor, memory, memorySize);
+		result = bytesWritten == memorySize;
+		close(fileDescriptor);
+	}else{
+		Cerr("Could not create file: \"%s\"", filename);
+	}
+
+	return result;
+}
+
+/**
+ * Copies one file to another
+ * TODO: optimize or find better solution
+ */
+B32 CopyFile(std::string src, std::string dest){
+	File srcFile = ReadEntireFile(src);
+	return WriteEntireFile(dest, srcFile.size, srcFile.data);
+}
+
+/**
+ * Returns last time a file was written to
+ */
+I64 GetLastWriteTime(std::string filename){
+	I64 result = 0;
+	struct stat statBuffer;
+	if(stat(filename.c_str(), &statBuffer)){
+		Cerr("Could not get stat of file: %s", filename);
+		result = 0;
+	}else{
+		result = statBuffer.st_mtim.tv_sec;
+	}
+	return 0;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+/*******************************************************************
  * ELON Engine Management                                          *
  *******************************************************************/
 
@@ -197,9 +335,14 @@ extern "C" {
 
 struct ELONEngine{
 	MODULE ELONEngine;
+	I64 lastWriteTime;
+	ELONCallback* InitTeleop;
 	ELONCallback* TeleopCallback;
+	ELONCallback* InitTest;
 	ELONCallback* TestCallback;
+	ELONCallback* InitAutonomous;
 	ELONCallback* AutonomousCallback;
+	ELONCallback* InitDisabled;
 	ELONCallback* DisabledCallback;
 	B32 isValid;
 };
@@ -208,30 +351,69 @@ ELON_CALLBACK(ELONCallbackStub){
 
 }
 
-ELONEngine LoadELONEngine(){
+/**
+ * Loads ELONEngine
+ */
+ELONEngine LoadELONEngine(std::string filename){
 	ELONEngine result = {};
 
-	result.ELONEngine = dlopen("/home/lvuser/libELON.so", RTLD_NOW);
-	if(result.ELONEngine){
-		//Load real functions
-		result.TeleopCallback = (ELONCallback*)dlsym(result.ELONEngine, "TeleopCallback");
-		result.TestCallback = (ELONCallback*)dlsym(result.ELONEngine, "TestCallback");
-		result.AutonomousCallback = (ELONCallback*)dlsym(result.ELONEngine, "AutonomousCallback");
-		result.DisabledCallback = (ELONCallback*)dlsym(result.ELONEngine, "DisabledCallback");
+	result.lastWriteTime = GetLastWriteTime(filename);
+	if(CopyFile(filename, ELONEngineTempBinary)){
 
-		result.isValid = (result.TeleopCallback && result.TestCallback && result.AutonomousCallback
-						 && result.DisabledCallback);
+		result.ELONEngine = dlopen(ELONEngineTempBinary, RTLD_NOW);
+		if(result.ELONEngine){
+			//Load real functions
+			result.InitTeleop = (ELONCallback*)dlsym(result.ELONEngine, "InitTeleop");
+			result.TeleopCallback = (ELONCallback*)dlsym(result.ELONEngine, "TeleopCallback");
+			result.InitTest = (ELONCallback*)dlsym(result.ELONEngine, "InitTest");
+			result.TestCallback = (ELONCallback*)dlsym(result.ELONEngine, "TestCallback");
+			result.InitAutonomous = (ELONCallback*)dlsym(result.ELONEngine, "InitAutonomous");
+			result.AutonomousCallback = (ELONCallback*)dlsym(result.ELONEngine, "AutonomousCallback");
+			result.InitDisabled = (ELONCallback*)dlsym(result.ELONEngine, "InitDisabled");
+			result.DisabledCallback = (ELONCallback*)dlsym(result.ELONEngine, "DisabledCallback");
+
+			result.isValid = (result.InitTeleop && result.TeleopCallback && result.InitTest && result.TestCallback
+							 && result.InitAutonomous && result.AutonomousCallback && result.InitDisabled
+							 && result.DisabledCallback);
+		}else{
+			Cerr("Invalid ELONEngine binary: \"%s\"", ELONEngineBinary);
+		}
+	}else{
+		Cerr("Could not copy \"%s\" into \"%s\"", ELONEngineBinary, ELONEngineTempBinary);
 	}
 
 	if(!(result.isValid)){
 		//Initialize to stub functions
+		result.InitTeleop = ELONCallbackStub;
 		result.TeleopCallback = ELONCallbackStub;
+		result.InitTest = ELONCallbackStub;
 		result.TestCallback = ELONCallbackStub;
+		result.InitAutonomous = ELONCallbackStub;
 		result.AutonomousCallback = ELONCallbackStub;
+		result.InitDisabled = ELONCallbackStub;
 		result.DisabledCallback = ELONCallbackStub;
 	}
 
 	return result;
+}
+
+/**
+ * Unloads ELONEngine
+ */
+void UnloadELONEngine(ELONEngine* engine){
+	if(engine->ELONEngine){
+		dlclose(engine->ELONEngine);
+	}
+
+	engine->isValid = False;
+	engine->InitTeleop = ELONCallbackStub;
+	engine->TeleopCallback = ELONCallbackStub;
+	engine->InitTest = ELONCallbackStub;
+	engine->TestCallback = ELONCallbackStub;
+	engine->InitAutonomous = ELONCallbackStub;
+	engine->AutonomousCallback = ELONCallbackStub;
+	engine->InitDisabled = ELONCallbackStub;
+	engine->DisabledCallback = ELONCallbackStub;
 }
 
 #ifdef __cplusplus
@@ -521,7 +703,7 @@ I32 FastThreadRuntime(U32 targetHz){
 			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
 			F64 testMSElapsedForFrame = elon->elonMemory.SystemTime() - lastTime;
 			if(testMSElapsedForFrame >= targetMSPerFrame){
-				elon->elonMemory.Cerr("Fast Thread waited too long.");
+				Cerr("Fast Thread waited too long.");
 			}else{
 				do{
 					workMSElapsed = elon->elonMemory.SystemTime() - lastTime;
@@ -545,58 +727,12 @@ I32 FastThreadRuntime(U32 targetHz){
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 	//TODO: Log
-	elon->elonMemory.Cout("[ELON] Total Fast Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
+	Cout("[ELON] Total Fast Thread time: %dm%.04fs.", totalMinutes, totalSeconds);
 #endif
 	return 0;
 }
 
 #endif
-
-I32 CoreThreadRuntime(U32 targetHz, B32_FUNCPTR runnerCallback, ELONCallback* executableCallback, ELON* elon){
-#if DISABLE_CORE_THREAD
-#else
-	F64 targetMSPerFrame = 1000.0 / targetHz;
-	F64 lastTime = elon->elonMemory->SystemTime();
-	while((elon->*runnerCallback)() && elon->IsEnabled()){
-		//Update Input
-		UpdateInput(elon->elonMemory);
-
-		//Executing user function
-		(*executableCallback)(elon->elonMemory);
-
-		//Temporary Subsystem updating while fast thread is closed
-		UpdateChassis(elon->elonMemory);
-		UpdateElevator(elon->elonMemory);
-
-		//Time processing
-		F64 workMSElapsed = elon->elonMemory->SystemTime() - lastTime;
-		if(workMSElapsed < targetMSPerFrame){
-			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
-			F64 testMSElapsedForFrame = elon->elonMemory->SystemTime() - lastTime;
-			if(testMSElapsedForFrame >= targetMSPerFrame){
-				elon->elonMemory->Cerr("Core Thread waited too long.");
-			}else{
-				do{
-					workMSElapsed = elon->elonMemory->SystemTime() - lastTime;
-				} while(workMSElapsed <= targetMSPerFrame);
-			}
-		}else{
-			//TODO: MISSED FRAME
-			//TODO: Log
-			elon->elonMemory->Cout("Missed last Core Thread frame.");
-		}
-
-		F64 endTime = SystemTime();
-		F64 frameTimeMS = endTime - lastTime;
-		lastTime = endTime;
-		F64 Hz = 1000.0/ frameTimeMS;
-
-		//Frame logging
-		//COUT("Last Core Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
-	}
-#endif
-	return 0;
-}
 
 /*******************************************************************
  * Input					                                       *
@@ -624,7 +760,7 @@ void UpdateInput(ELONMemory* memory){
 		F32 ly = ds->GetStickAxis(i, _LY);
 		F32 lmgntd2 = lx*lx+ly*ly;
 
-		if(lmgntd2 < deadzone2){
+		if(lmgntd2 < DEADZONE_SQ){
 			state->gamepads[i].lx = 0.0f;
 			state->gamepads[i].ly = 0.0f;
 		}else{
@@ -634,18 +770,18 @@ void UpdateInput(ELONMemory* memory){
 			if(lmgntd > 1.0f){
 				lmgntd = 1.0f;
 			}
-			lmgntd -= deadzone;
+			lmgntd -= DEADZONE;
 			lx = nlxFactor * lmgntd;
 			ly = nlyFactor * lmgntd;
 			if(state->gamepads[i].inputType == InputType::LINEAR){
-				state->gamepads[i].lx = lx / (1 - deadzone * nlxFactor);
-				state->gamepads[i].ly = ly / (1 - deadzone * nlyFactor);
+				state->gamepads[i].lx = lx / (1 - DEADZONE * nlxFactor);
+				state->gamepads[i].ly = ly / (1 - DEADZONE * nlyFactor);
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].lx = memory->Sq(lx / (1 - deadzone * nlxFactor * memory->Sgn(lx))) * memory->Sgn(lx);
-				state->gamepads[i].ly = memory->Sq(ly / (1 - deadzone * nlyFactor * memory->Sgn(ly))) * memory->Sgn(ly);
+				state->gamepads[i].lx = memory->Sq(lx / (1 - DEADZONE * nlxFactor * memory->Sgn(lx))) * memory->Sgn(lx);
+				state->gamepads[i].ly = memory->Sq(ly / (1 - DEADZONE * nlyFactor * memory->Sgn(ly))) * memory->Sgn(ly);
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].lx = memory->Qu(lx / (1 - deadzone * nlxFactor * memory->Sgn(lx))) * memory->Sgn(lx);
-				state->gamepads[i].ly = memory->Qu(ly / (1 - deadzone * nlyFactor * memory->Sgn(ly))) * memory->Sgn(ly);
+				state->gamepads[i].lx = memory->Qu(lx / (1 - DEADZONE * nlxFactor * memory->Sgn(lx))) * memory->Sgn(lx);
+				state->gamepads[i].ly = memory->Qu(ly / (1 - DEADZONE * nlyFactor * memory->Sgn(ly))) * memory->Sgn(ly);
 			}
 		}
 
@@ -654,7 +790,7 @@ void UpdateInput(ELONMemory* memory){
 		F32 ry = ds->GetStickAxis(i, _RY);
 		F32 rmgntd2 = rx*rx+ry*ry;
 
-		if(rmgntd2 < deadzone2){
+		if(rmgntd2 < DEADZONE_SQ){
 			state->gamepads[i].rx = 0.0f;
 			state->gamepads[i].ry = 0.0f;
 		}else{
@@ -664,46 +800,46 @@ void UpdateInput(ELONMemory* memory){
 			if(rmgntd > 1.0f){
 				rmgntd = 1.0f;
 			}
-			rmgntd -= deadzone;
+			rmgntd -= DEADZONE;
 			rx = nrxFactor * rmgntd;
 			ry = nryFactor * rmgntd;
 			if(state->gamepads[i].inputType == InputType::LINEAR){
-				state->gamepads[i].rx = rx / (1 - deadzone * nrxFactor * memory->Sgn(rx));
-				state->gamepads[i].ry = ry / (1 - deadzone * nryFactor * memory->Sgn(ry));
+				state->gamepads[i].rx = rx / (1 - DEADZONE * nrxFactor * memory->Sgn(rx));
+				state->gamepads[i].ry = ry / (1 - DEADZONE * nryFactor * memory->Sgn(ry));
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].rx = memory->Sq(rx / (1 - deadzone * nrxFactor * memory->Sgn(rx))) * memory->Sgn(rx);
-				state->gamepads[i].ry = memory->Sq(ry / (1 - deadzone * nryFactor * memory->Sgn(ry))) * memory->Sgn(ry);
+				state->gamepads[i].rx = memory->Sq(rx / (1 - DEADZONE * nrxFactor * memory->Sgn(rx))) * memory->Sgn(rx);
+				state->gamepads[i].ry = memory->Sq(ry / (1 - DEADZONE * nryFactor * memory->Sgn(ry))) * memory->Sgn(ry);
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].rx = memory->Qu(rx / (1 - deadzone * nrxFactor * memory->Sgn(rx))) * memory->Sgn(rx);
-				state->gamepads[i].ry = memory->Qu(ry / (1 - deadzone * nryFactor * memory->Sgn(ry))) * memory->Sgn(ry);
+				state->gamepads[i].rx = memory->Qu(rx / (1 - DEADZONE * nrxFactor * memory->Sgn(rx))) * memory->Sgn(rx);
+				state->gamepads[i].ry = memory->Qu(ry / (1 - DEADZONE * nryFactor * memory->Sgn(ry))) * memory->Sgn(ry);
 			}
 		}
 
 		//Linear deadzone processing of left trigger
 		F32 lt = ds->GetStickAxis(i, _LT);
-		if(lt < triggerDeadzone){
+		if(lt < TRIGGER_DEADZONE){
 			state->gamepads[i].lt = 0.0f;
 		}else{
 			if(state->gamepads[i].inputType == InputType::LINEAR){
-				state->gamepads[i].lt = (lt - triggerDeadzone * memory->Sgn(lt))/(1.0f - triggerDeadzone);
+				state->gamepads[i].lt = (lt - TRIGGER_DEADZONE * memory->Sgn(lt))/(1.0f - TRIGGER_DEADZONE);
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].lt = memory->Sq((lt - triggerDeadzone * memory->Sgn(lt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].lt = memory->Sq((lt - TRIGGER_DEADZONE * memory->Sgn(lt))/(1.0f - TRIGGER_DEADZONE));
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].lt = memory->Qu((lt - triggerDeadzone * memory->Sgn(lt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].lt = memory->Qu((lt - TRIGGER_DEADZONE * memory->Sgn(lt))/(1.0f - TRIGGER_DEADZONE));
 			}
 		}
 
 		//Linear deadzone processing of right trigger
 		F32 rt = ds->GetStickAxis(i, _RT);
-		if(rt < triggerDeadzone){
+		if(rt < TRIGGER_DEADZONE){
 			state->gamepads[i].rt = 0.0f;
 		}else{
 			if(state->gamepads[i].inputType == InputType::LINEAR){
-				state->gamepads[i].rt = (rt - triggerDeadzone * memory->Sgn(rt))/(1.0f - triggerDeadzone);
+				state->gamepads[i].rt = (rt - TRIGGER_DEADZONE * memory->Sgn(rt))/(1.0f - TRIGGER_DEADZONE);
 			}else if(state->gamepads[i].inputType == InputType::QUADRATIC){
-				state->gamepads[i].rt = memory->Sq((rt - triggerDeadzone * memory->Sgn(rt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].rt = memory->Sq((rt - TRIGGER_DEADZONE * memory->Sgn(rt))/(1.0f - TRIGGER_DEADZONE));
 			}else if(state->gamepads[i].inputType == InputType::QUARTIC){
-				state->gamepads[i].rt = memory->Qu((rt - triggerDeadzone * memory->Sgn(rt))/(1.0f - triggerDeadzone));
+				state->gamepads[i].rt = memory->Qu((rt - TRIGGER_DEADZONE * memory->Sgn(rt))/(1.0f - TRIGGER_DEADZONE));
 			}
 		}
 
@@ -717,10 +853,7 @@ void UpdateInput(ELONMemory* memory){
  * ELON Class				                                       *
  *******************************************************************/
 
-ELONEngine engine;
-
-ELON::ELON(ELONMemory* memory): elonMemory(memory){
-	Cout("Initializing");
+ELON::ELON(){
 
 	//Thread startup
 	//InitializeThreadSpace();
@@ -734,120 +867,19 @@ ELON::ELON(ELONMemory* memory): elonMemory(memory){
 }
 
 void ELON::RobotInit(){
+
+}
+
+void ELON::RobotMain(){
+	Cout("Starting ELON Hardware Layer Core Loop");
+
+	LiveWindow* lw = LiveWindow::GetInstance();
+	DriverStation* ds = DriverStation::GetInstance();
+	lw->SetEnabled(True);
+
+	Cout("Initializing");
+
 	//System startup
-
-	//Chassis initialization
-	InitializeChassis();
-
-	//Elevator initialization
-	InitializeElevator();
-}
-
-void ELON::Autonomous(){
-	F64 startTime = SystemTime();
-	//ResumeFastThread();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsAutonomous),
-					 engine.AutonomousCallback, this);
-
-	//PauseFastThread();
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Autonomous time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-void ELON::OperatorControl(){
-	F64 startTime = SystemTime();
-	//ResumeFastThread();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsOperatorControl),
-					 engine.TeleopCallback, this);
-
-	//PauseFastThread();
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) / 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Teleoperator time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-void ELON::Test(){
-	F64 startTime = SystemTime();
-	//ResumeFastThread();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
-					 engine.TestCallback, this);
-
-	//PauseFastThread();
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Test time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-void ELON::Disabled(){
-	F64 startTime = SystemTime();
-
-	CoreThreadRuntime(CORE_THREAD_HZ, (B32_FUNCPTR)(&ELON::IsTest),
-					 engine.DisabledCallback, this);
-
-	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
-	U32 totalMinutes = totalTimeElapsedSeconds / 60;
-	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
-	//TODO: Log
-	Cout("Total Disabled time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-ELON::~ELON(){
-	//System shutdown
-	TerminateElevator();
-	TerminateChassis();
-
-	//Thread shutdown
-	//StopFastThread();
-	fastThread->Stop();
-	//TerminateThreadSpace();
-	delete fastThread;
-
-	//Memory shutdown
-	//munmap(totalElonMemoryBlock, ELON_TOTAL_STORAGE_SIZE);
-
-	//Logging shutdown
-	TerminateLogging();
-}
-
-/*******************************************************************
- * Main function                                                   *
- *******************************************************************/
-
-U64 KiB(U64 sizeBytes){
-	return sizeBytes * 1024LL;
-}
-
-U64 MiB(U64 sizeBytes){
-	return KiB(sizeBytes) * 1024LL;
-}
-
-U64 GiB(U64 sizeBytes){
-	return MiB(sizeBytes) * 1024LL;
-}
-
-U64 TiB(U64 sizeBytes){
-	return TiB(sizeBytes) * 1024LL;
-}
-
-U32 ELON_PERMANENT_STORAGE_SIZE = (MiB(16));
-U32 ELON_TRANSIENT_STORAGE_SIZE = (MiB(16));
-U32 ELON_TOTAL_STORAGE_SIZE = (ELON_PERMANENT_STORAGE_SIZE + ELON_TRANSIENT_STORAGE_SIZE);
-
-I32 main() {
-	//Logging startup
-	InitializeLogging();
-	Cout("Logging Initialized!");
-
 
 	//Memory startup
 	void* totalElonMemoryBlock = NULL;
@@ -886,16 +918,191 @@ I32 main() {
 	totalElonMemoryBlock = mmap(baseAddress, ELON_TOTAL_STORAGE_SIZE, PROT_READ | PROT_WRITE,
 								MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
 
-	if(totalElonMemoryBlock){
-		Cout("Total ELON memory successfully allocated with size of %d Bytes", ELON_TOTAL_STORAGE_SIZE);
+	if(totalElonMemoryBlock != MAP_FAILED){
+		Cout("Total ELON memory successfully allocated with size of %lu Bytes", ELON_TOTAL_STORAGE_SIZE);
 	}else{
-		Cerr("Total ELON memory allocation failed with size of %d Bytes", ELON_TOTAL_STORAGE_SIZE);
+		Cerr("Total ELON memory allocation failed with size of %lu Bytes", ELON_TOTAL_STORAGE_SIZE);
 	}
 
 	elonMemory.permanentStorage = totalElonMemoryBlock;
 	elonMemory.transientStorage = ((U8*)elonMemory.permanentStorage + elonMemory.permanentStorageSize);
+
+	//Chassis initialization
+	InitializeChassis();
+
+	//Elevator initialization
+	InitializeElevator();
+
 	//ELONEngine startup
-	engine = LoadELONEngine();
+	ELONEngine engine = LoadELONEngine(ELONEngineBinary);
+	U32 loadCounter = 0;
+
+	F64 targetMSPerFrame = 1000.0 / CORE_THREAD_HZ;
+	F64 startTime = SystemTime();
+	F64 lastTime = SystemTime();
+	for(;;){
+		//Reload ELONEngine
+		U32 newELONEngineWriteTime = GetLastWriteTime(ELONEngineBinary);
+		if(newELONEngineWriteTime != engine.lastWriteTime){
+			UnloadELONEngine(&engine);
+			engine = LoadELONEngine(ELONEngineBinary);
+			loadCounter = 0;
+		}
+
+		//Update Input
+		UpdateInput(&elonMemory);
+
+		//Executing user function based on robot state
+		if(IsAutonomous() && IsEnabled()){
+			if(!autonomousInit){
+				lw->SetEnabled(False);
+				ds->InAutonomous(True);
+				ds->InOperatorControl(False);
+				ds->InTest(False);
+				ds->InDisabled(False);
+				ELON::Autonomous();
+				engine.InitAutonomous(&elonMemory);
+				autonomousInit = True;
+				teleopInit = False;
+				testInit = False;
+				disabledInit = False;
+			}
+			//Autonomous Iterative Dytor
+			engine.AutonomousCallback(&elonMemory);
+
+		}else if(IsOperatorControl() && IsEnabled()){
+			if(!autonomousInit){
+				lw->SetEnabled(False);
+				ds->InAutonomous(False);
+				ds->InOperatorControl(True);
+				ds->InTest(False);
+				ds->InDisabled(False);
+				ELON::OperatorControl();
+				engine.InitTeleop(&elonMemory);
+				autonomousInit = False;
+				teleopInit = True;
+				testInit = False;
+				disabledInit = False;
+			}
+			//Teleop Iterative Dytor
+			engine.TeleopCallback(&elonMemory);
+
+		}else if(IsTest() && IsEnabled()){
+			if(!autonomousInit){
+				lw->SetEnabled(True);
+				ds->InAutonomous(False);
+				ds->InOperatorControl(False);
+				ds->InTest(True);
+				ds->InDisabled(False);
+				ELON::Test();
+				engine.InitTest(&elonMemory);
+				autonomousInit = False;
+				teleopInit = False;
+				testInit = True;
+				disabledInit = False;
+			}
+			//Test Iterative Dytor
+			engine.TestCallback(&elonMemory);
+
+		}else if(IsDisabled()){
+			if(!autonomousInit){
+				lw->SetEnabled(False);
+				ds->InAutonomous(False);
+				ds->InOperatorControl(False);
+				ds->InTest(False);
+				ds->InDisabled(True);
+				ELON::Disabled();
+				engine.InitDisabled(&elonMemory);
+				autonomousInit = False;
+				teleopInit = False;
+				testInit = False;
+				disabledInit = True;
+			}
+			//Disabled Iterative Dytor
+			engine.DisabledCallback(&elonMemory);
+
+		}
+
+		//Temporary Subsystem updating while fast thread is closed
+		UpdateChassis(&elonMemory);
+		UpdateElevator(&elonMemory);
+
+		//Time processing
+		F64 workMSElapsed = SystemTime() - lastTime;
+		if(workMSElapsed < targetMSPerFrame){
+			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
+			F64 testMSElapsedForFrame = SystemTime() - lastTime;
+			if(testMSElapsedForFrame >= targetMSPerFrame){
+				Cerr("Core Thread Runtime waited too long.");
+			}else{
+				do{
+					workMSElapsed = SystemTime() - lastTime;
+				} while(workMSElapsed <= targetMSPerFrame);
+			}
+		}else{
+			//TODO: MISSED FRAME
+			//TODO: Log
+			Cout("Missed last Core Thread Runtime frame.");
+		}
+
+		F64 endTime = SystemTime();
+		F64 frameTimeMS = endTime - lastTime;
+		lastTime = endTime;
+		F64 Hz = 1000.0/ frameTimeMS;
+
+		//Frame logging
+		//COUT("Last Core Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
+	}
+
+	//System shutdown
+	TerminateElevator();
+	TerminateChassis();
+
+	//Thread shutdown
+	//StopFastThread();
+	//fastThread->Stop();
+	//TerminateThreadSpace();
+	delete fastThread;
+
+	//Memory shutdown
+	munmap(totalElonMemoryBlock, ELON_TOTAL_STORAGE_SIZE);
+
+	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
+	U32 totalMinutes = totalTimeElapsedSeconds / 60;
+	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+	//TODO: Log
+	Cout("Total Core Thread Running time: %dm%.04fs.", totalMinutes, totalSeconds);
+}
+
+void ELON::Autonomous(){
+
+}
+
+void ELON::OperatorControl(){
+
+}
+
+void ELON::Test(){
+
+}
+
+void ELON::Disabled(){
+
+}
+
+ELON::~ELON(){
+	//Logging shutdown
+	TerminateLogging();
+}
+
+/*******************************************************************
+ * Main function                                                   *
+ *******************************************************************/
+
+I32 main() {
+	//Logging startup
+	InitializeLogging();
+	Cout("Logging Initialized!");
 
 	if (!HALInitialize()){
 		Cerr("HAL could not be initialized.");
@@ -903,7 +1110,7 @@ I32 main() {
 	}
 	HALReport(HALUsageReporting::kResourceType_Language, HALUsageReporting::kLanguage_CPlusPlus);
 
-	ELON* elon = new ELON(&elonMemory);
+	ELON* elon = new ELON();
 	RobotBase::robotSetup(elon);
 	Cout("Does this run?");
 	return 0;

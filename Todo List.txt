@@ -1,6 +1,6 @@
 - Dynamic Linking to Code
 - Button Queue
-+ Action Queue
+- Action Queue
 - Convert globalActionBuffers to a const-sized buffer
 + Add button states
 - Button that cancels action
@@ -12,3 +12,4 @@
 - Record input
 - Live loop editing
 - ELONMemory as only allocation
+- Finish build system to update code on save
