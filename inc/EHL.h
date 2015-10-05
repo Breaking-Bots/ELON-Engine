@@ -143,7 +143,7 @@ I32 FastThreadRuntime(U32 targetHz);
 /**
  * Updates the gamepads from data recieved from driver station
  */
-void UpdateInput(ELONMemory* memory);
+void UpdateInput(DriverStation* ds, ELONMemory* memory);
 
 /*******************************************************************
  * ELON Class				                                       *

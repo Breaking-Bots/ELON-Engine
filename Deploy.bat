@@ -7,4 +7,4 @@ sftp -oBatchMode=no -b sftpbatchfile lvuser@roboRIO-5428.local
 echo Kill Netconsole
 ssh admin@roboRIO-5428.local "killall netconsole-host"
 echo Start FRCUserProgram
-ssh lvuser@roboRIO-5428.local ". /etc/profile.d/natinst-path.sh; chmod a+x /home/lvuser/FRCUserProgram; /usr/local/frc/bin/frcKillRobot.sh -t -r"
+ssh lvuser@roboRIO-5428.local ". /etc/profile.d/natinst-path.sh; chmod -R 777 /home/lvuser; chmod a+x /home/lvuser/FRCUserProgram; /usr/local/frc/bin/frcKillRobot.sh -t -r"

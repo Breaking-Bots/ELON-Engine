@@ -231,11 +231,27 @@ U64_CALLBACK_U32(Pow10){
  */
 U64_CALLBACK_U32(DecToBin){
 	U64 bin = 0;
-	for(int i = 0; a != 0; i++){
+	for(int i = 0; x != 0; i++){
 		bin += Pow10(i) * (x % 2);
 		x /= 2;
 	}
 	return bin;
+}
+
+inline U32 KiB(U32 x){
+	return x * 1024;
+}
+
+inline U32 MiB(U32 x){
+	return KiB(x) * 1024;
+}
+
+inline U32 GiB(U32 x){
+	return MiB(x) * 1024;
+}
+
+inline U32 TiB(U32 x){
+	return GiB(x) * 1024;
 }
 
 /**
@@ -258,40 +274,42 @@ File ReadEntireFile(std::string filename){
 		fstat(fileDescriptor, &statBuffer);
 		result.size = statBuffer.st_size;
 		if(result.size){
-			Cout("File opened: \"%s\"; Size: %lu", filename, result.size);
+			Cout("File opened: \"%s\"; Size: %lu", filename.c_str(), result.size);
 			result.data = mmap(NULL, result.size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileDescriptor, 0);
 			if(result.data != MAP_FAILED){
 				U32 bytesRead = read(fileDescriptor, result.data, result.size);
 				if(bytesRead != result.size){
-					Cerr("File allocation failed: File: \"%s\"; Size %lu", filename, result.size);
+					Cerr("File allocation failed: File: \"%s\"; Size %lu", filename.c_str(), result.size);
 					munmap(result.data, result.size);
 					result.data = NULL;
 					result.size = 0;
 				}
 			}else{
-				Cerr("File request allocation failed: File \"%s\"; Size %lu", filename, result.size);
+				Cerr("File request allocation failed: File \"%s\"; Size %lu", filename.c_str(), result.size);
 			}
 		}else{
-			Cerr("File request failed with size of 0; File: \"%s\"", filename);
+			Cerr("File request failed with size of 0; File: \"%s\"", filename.c_str());
 		}
 	}
 	close(fileDescriptor);
-
+	return result;
 }
 
 /**
- * Writes memory to file of given filename, creates file if doesnt exist
+ * Writes memory to file of given filename, creates file if doesn't exist
  */
 B32 WriteEntireFile(std::string filename, U32 memorySize, void* memory){
 	B32 result = false;
 
-	I32 fileDescriptor = open(filename.c_str(), O_WRONLY | O_CREAT);
+	I32 fileDescriptor = open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 	if(fileDescriptor != -1){
 		U32 bytesWritten = write(fileDescriptor, memory, memorySize);
 		result = bytesWritten == memorySize;
 		close(fileDescriptor);
 	}else{
-		Cerr("Could not create file: \"%s\"", filename);
+		I32 err = errno;
+		Cerr("Could not create file: \"%s\"", filename.c_str());
+		Cerr("Errno: %d", err);
 	}
 
 	return result;
@@ -313,12 +331,12 @@ I64 GetLastWriteTime(std::string filename){
 	I64 result = 0;
 	struct stat statBuffer;
 	if(stat(filename.c_str(), &statBuffer)){
-		Cerr("Could not get stat of file: %s", filename);
+		Cerr("Could not get stat of file: %s", filename.c_str());
 		result = 0;
 	}else{
 		result = statBuffer.st_mtim.tv_sec;
 	}
-	return 0;
+	return result;
 }
 
 #ifdef __cplusplus
@@ -392,6 +410,8 @@ ELONEngine LoadELONEngine(std::string filename){
 		result.AutonomousCallback = ELONCallbackStub;
 		result.InitDisabled = ELONCallbackStub;
 		result.DisabledCallback = ELONCallbackStub;
+	}else{
+		Cout("ELONEngine successfully loaded!");
 	}
 
 	return result;
@@ -431,6 +451,7 @@ MUTEX_ID elevatorMotorLock;
 void InitializeElevator(){
 	elevatorMotorLock = initializeMutexNormal();
 	elevatorMotor = new Victor(ELEVATOR_PORT);
+	Cout("Elevator Initialized");
 }
 
 void UpdateElevator(ELONMemory* memory){
@@ -465,6 +486,7 @@ void InitializeChassis(){
 	motors[1] = new Talon(CHASSIS_PORT_BL);
 	motors[2] = new Talon(CHASSIS_PORT_FR);
 	motors[3] = new Talon(CHASSIS_PORT_BR);
+	Cout("Chassis Initialized");
 }
 
 void UpdateChassis(ELONMemory* memory){
@@ -746,12 +768,13 @@ I32 FastThreadRuntime(U32 targetHz){
 #define _RY 5
 #define NUM_BUTTONS 10
 
-DriverStation* ds; //Driverstation where gamepads are connected
-
-void UpdateInput(ELONMemory* memory){
+void UpdateInput(DriverStation* ds, ELONMemory* memory){
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
 
 	for(U32 i = 0; i < NUM_GAMEPADS; i++){
+		if(!state){
+			Cerr("Gamepad is null: gamepads[%d] Total gamepads: %d", i, NUM_GAMEPADS);
+		}
 		state->gamepads[i].buttons |= state->gamepads[i].buttons << 16;
 		state->gamepads[i].buttons = ds->GetStickButtons(i);
 
@@ -759,6 +782,7 @@ void UpdateInput(ELONMemory* memory){
 		F32 lx = ds->GetStickAxis(i, _LX);
 		F32 ly = ds->GetStickAxis(i, _LY);
 		F32 lmgntd2 = lx*lx+ly*ly;
+
 
 		if(lmgntd2 < DEADZONE_SQ){
 			state->gamepads[i].lx = 0.0f;
@@ -853,6 +877,10 @@ void UpdateInput(ELONMemory* memory){
  * ELON Class				                                       *
  *******************************************************************/
 
+U32 ELON_PERMANENT_STORAGE_SIZE = (MiB(16));
+U32 ELON_TRANSIENT_STORAGE_SIZE = (MiB(16));
+U32 ELON_TOTAL_STORAGE_SIZE  = (ELON_PERMANENT_STORAGE_SIZE + ELON_TRANSIENT_STORAGE_SIZE);
+
 ELON::ELON(){
 
 	//Thread startup
@@ -916,12 +944,14 @@ void ELON::RobotMain(){
 	elonMemory.DecToBin = DecToBin;
 
 	totalElonMemoryBlock = mmap(baseAddress, ELON_TOTAL_STORAGE_SIZE, PROT_READ | PROT_WRITE,
-								MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
+								MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	if(totalElonMemoryBlock != MAP_FAILED){
 		Cout("Total ELON memory successfully allocated with size of %lu Bytes", ELON_TOTAL_STORAGE_SIZE);
 	}else{
+		I32 err = errno;
 		Cerr("Total ELON memory allocation failed with size of %lu Bytes", ELON_TOTAL_STORAGE_SIZE);
+		Cerr("Errno: %d", err);
 	}
 
 	elonMemory.permanentStorage = totalElonMemoryBlock;
@@ -943,6 +973,7 @@ void ELON::RobotMain(){
 	for(;;){
 		//Reload ELONEngine
 		U32 newELONEngineWriteTime = GetLastWriteTime(ELONEngineBinary);
+		//Cout("%d", newELONEngineWriteTime);
 		if(newELONEngineWriteTime != engine.lastWriteTime){
 			UnloadELONEngine(&engine);
 			engine = LoadELONEngine(ELONEngineBinary);
@@ -950,7 +981,7 @@ void ELON::RobotMain(){
 		}
 
 		//Update Input
-		UpdateInput(&elonMemory);
+		UpdateInput(ds, &elonMemory);
 
 		//Executing user function based on robot state
 		if(IsAutonomous() && IsEnabled()){

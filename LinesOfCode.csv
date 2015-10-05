@@ -6,15 +6,15 @@ Elevator.h , 17
 ELONEngine.h , 11 
 Input.h , 92 
 Memory.h , 64 
-Properties.h , 29 
+Properties.h , 26 
 Source.h , 15 
-Util.h , 87 
+Util.h , 83 
 Actions.cpp , 53 
 Chassis.cpp , 103 
-EHL.cpp , 952 
+EHL.cpp , 979 
 Elevator.cpp , 22 
 Input.cpp , 127 
 Memory.cpp , 7 
 Source.cpp , 55 
 Util.cpp , 7 
-Grand Total , 1912  
+Grand Total , 1932  
