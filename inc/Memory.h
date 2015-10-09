@@ -64,7 +64,6 @@ struct ElevatorState{
 struct ELONState{
 	ChassisState chassisState;
 	ElevatorState elevatorState;
-	Gamepad gamepads[NUM_GAMEPADS];
 };
 
 #ifdef __cplusplus

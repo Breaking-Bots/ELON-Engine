@@ -32,7 +32,7 @@ ELON_CALLBACK(TestCallback){
 		memory->isInitialized = True;
 	}
 
-	Gamepad* gamepad = &(state->gamepads[0]);
+	Gamepad* gamepad = GetGamepad(input, 0);
 
 	//Input processing
 	F32 lx = LX(gamepad);

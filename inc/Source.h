@@ -5,12 +5,12 @@
 extern "C" {
 #endif
 
-//TODO: Make this one type called ELON_CALLBACK
+//TODO: Make this two types, one for Init, one for iterative callback
 
 /**
  * Called at 50Hz when in teleop mode
  */
-#define ELON_CALLBACK(name) void name(ELONMemory* memory)
+#define ELON_CALLBACK(name) void name(ELONMemory* memory, Input* input)
 typedef ELON_CALLBACK(ELONCallback);
 
 #ifdef __cplusplus

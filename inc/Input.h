@@ -2,10 +2,18 @@
 #define ELON_INPUT_H
 
 /**
- * gamepad input type
+ * Gamepad input type
  */
 enum InputType{
 	LINEAR, QUADRATIC, QUARTIC
+};
+
+/**
+ * Gamepad button state
+ */
+struct ButtonState{
+	I32 halfTransitionCount;
+	B32 endedDown;
 };
 
 /**
@@ -24,34 +32,49 @@ struct Gamepad{
 		};
 	};
 	union{
-		U32 buttons;
+		ButtonState buttons[10];
 		struct{
-			U32 a : 1;
-			U32 b : 1;
-			U32 x : 1;
-			U32 y : 1;
-			U32 lb : 1;
-			U32 rb : 1;
-			U32 back : 1;
-			U32 start : 1;
-			U32 l3 : 1;
-			U32 r3 : 1;
-			U32 padding : 6;
-			U32 _a : 1;
-			U32 _b : 1;
-			U32 _x : 1;
-			U32 _y : 1;
-			U32 _lb : 1;
-			U32 _rb : 1;
-			U32 _back : 1;
-			U32 _start : 1;
-			U32 _l3 : 1;
-			U32 _r3 : 1;
+			ButtonState a;
+			ButtonState b;
+			ButtonState x;
+			ButtonState y;
+			ButtonState lb;
+			ButtonState rb;
+			ButtonState back;
+			ButtonState start;
+			ButtonState l3;
+			ButtonState r3;
+
+			//All buttons must be added above this line
+			ButtonState buttonTerminator;
 		};
 	};
-	I32 dpad;
+	union{
+		ButtonState dpad[4];
+		struct{
+			ButtonState up;
+			ButtonState down;
+			ButtonState left;
+			ButtonState right;
+			//All dpad buttons must be added above this line
+			ButtonState dpadTerminator;
+		};
+	};
+
 	InputType inputType = InputType::QUADRATIC;
 };
+
+
+struct Input{
+	Gamepad gamepads[NUM_GAMEPADS];
+};
+
+inline Gamepad* GetGamepad(Input* input, U32 port){
+	if(port > sizeofArr(input->gamepads)){
+		return input->gamepads[0];
+	}
+	return &(input->gamepads[port]);
+}
 
 U32 Buttons(Gamepad* gamepad);
 

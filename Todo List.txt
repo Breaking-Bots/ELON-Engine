@@ -13,3 +13,6 @@
 - Live loop editing
 - ELONMemory as only allocation
 - Finish build system to update code on save
+- Stop using std::string
+- Fix mmap allocation
+- Pass in input from code
