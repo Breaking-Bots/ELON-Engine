@@ -197,14 +197,29 @@ inline U32 TiB(U32 x){
 	return GiB(x) * 1024;
 }
 
+U32 GetFileSize(std::string filename, I32 fd, B32 useFD, B32 ignoreFailure){
+	struct stat statBuffer;
+	U32 result = 0;
+	if(!useFD){
+		fd = open(filename.c_str(), O_RDONLY);
+	}
+	if(fd != -1){
+		fstat(fd, &statBuffer);
+		result = statBuffer.st_size;
+		if(!useFD){
+			close(fd);
+		}
+	}
+	return result;
+}
+
 File ReadEntireFile(std::string filename, B32 ignoreFailure){
 	File result = {};
 	struct stat statBuffer;
 
 	I32 fileDescriptor = open(filename.c_str(), O_RDONLY);
 	if(fileDescriptor != -1){
-		fstat(fileDescriptor, &statBuffer);
-		result.size = statBuffer.st_size;
+		result.size = GetFileSize(filename, fileDescriptor, True, ignoreFailure);
 		if(result.size){
 			Cout("File opened: \"%s\"; Size: %lu", filename.c_str(), result.size);
 			result.data = mmap(NULL, result.size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileDescriptor, 0);
@@ -255,7 +270,7 @@ B32 CopyFile(std::string src, std::string dest, B32 ignoreFailure){
 	return WriteEntireFile(dest, srcFile.size, srcFile.data, ignoreFailure);
 }
 
-I64 GetLastWriteTime(std::string filename, B32 ignoreFailure = False){
+I64 GetLastWriteTime(std::string filename, B32 ignoreFailure){
 	I64 result = 0;
 	struct stat statBuffer;
 	if(!stat(filename.c_str(), &statBuffer)){
@@ -671,16 +686,9 @@ I32 FastThreadRuntime(U32 targetHz){
  * Input					                                       *
  *******************************************************************/
 
-#define _LX 0
-#define _LY 1
-#define _LT 2
-#define _RT 3
-#define _RX 4
-#define _RY 5
-#define NUM_BUTTONS 10
 
-intern void ProcessDigitalButton(ButtonState* oldState, U32 buttonBit, ButtonState* newState){
-	newState->endedDown = ((XInputButtonState & buttonBit) == buttonBit);
+intern void ProcessDigitalButton(U32 buttonBitSet, ButtonState* oldState, U32 buttonBit, ButtonState* newState){
+	newState->endedDown = ((buttonBitSet & buttonBit) == buttonBit);
 	newState->halfTransitionCount = (oldState->endedDown != newState->endedDown) ? 1 : 0;
 }
 
@@ -714,8 +722,8 @@ intern void ProcessStickInput(F32* _x, F32* _y, InputType inputType){
 		}
 	}
 
-	*x = x; //TODO: Check if this is unnecessary
-	*y = y; //TODO: Check if this is unnecessary
+	*_x = x; //TODO: Check if this is unnecessary
+	*_y = y; //TODO: Check if this is unnecessary
 }
 
 intern void ProcessTriggerInput(F32* _t, InputType inputType){
@@ -743,8 +751,22 @@ void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
 		Gamepad* newGamepad = GetGamepad(newInput, i);
 		Gamepad* oldGamepad = GetGamepad(oldInput, i);
 
-		state->gamepads[i].buttons |= state->gamepads[i].buttons << 16;
-		state->gamepads[i].buttons = ds->GetStickButtons(i);
+		//Processing buttons
+		U32 buttonBitSet = ds->GetStickButtons(i);
+
+		for(U32 j = 0; j < NUM_BUTTONS; j++){
+			ProcessDigitalButton(buttonBitSet, &oldGamepad->buttons[i], j, &newGamepad->buttons[i]);
+		}
+
+		//Processing DPAD values
+		I32 dpad = ds->GetStickPOV(i, 0);
+
+		if(dpad != -1){
+			ProcessDigitalButton((dpad >= 315 || dpad <= 45)? 1 : 0, &oldGamepad->up, 1, &newGamepad->up);
+			ProcessDigitalButton((dpad >= 45 && dpad <= 135)? 1 : 0, &oldGamepad->right, 1, &newGamepad->right);
+			ProcessDigitalButton((dpad >= 135 && dpad <= 225)? 1 : 0, &oldGamepad->down, 1, &newGamepad->down);
+			ProcessDigitalButton((dpad >= 225 && dpad <= 315)? 1 : 0, &oldGamepad->left, 1, &newGamepad->left);
+		}
 
 		//Circular deadzone processing of left joystick
 		F32 lx = ds->GetStickAxis(i, _LX);
@@ -771,9 +793,6 @@ void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
 		F32 rt = ds->GetStickAxis(i, _RT);
 		ProcessTriggerInput(&rt, newGamepad->inputType);
 		newGamepad->rt = rt;
-
-		//Stash POV (D-PAD) angles in degrees
-		state->gamepads[i].dpad = ds->GetStickPOV(i, 0);
 	}
 }
 
@@ -863,7 +882,9 @@ void ELON::RobotMain(){
 	elonMemory.transientStorage = ((U8*)elonMemory.permanentStorage + elonMemory.permanentStorageSize);
 
 	//Input initialization
-	Input inputs[2] = {};
+	Input inputs[2];
+	inputs[0] = {};
+	inputs[1] = {};
 	Input* newInput = &inputs[0];
 	Input* oldInput = &inputs[1];
 
@@ -884,7 +905,9 @@ void ELON::RobotMain(){
 		//Reload ELONEngine
 		U32 newELONEngineWriteTime = GetLastWriteTime(ELONEngineBinary);
 		//Cout("%d", newELONEngineWriteTime);
-		if(newELONEngineWriteTime != engine.lastWriteTime){
+		U32 libELONFileSize = GetFileSize(ELONEngineBinary);
+		U32 libELON_tempFileSize = GetFileSize(ELONEngineTempBinary);
+		if((newELONEngineWriteTime != engine.lastWriteTime) || (libELONFileSize != libELON_tempFileSize)){
 			UnloadELONEngine(&engine);
 			engine = LoadELONEngine(ELONEngineBinary);
 			loadCounter = 0;
@@ -902,14 +925,14 @@ void ELON::RobotMain(){
 				ds->InTest(False);
 				ds->InDisabled(False);
 				ELON::Autonomous();
-				engine.InitAutonomous(&elonMemory);
+				engine.InitAutonomous(&elonMemory, newInput);
 				autonomousInit = True;
 				teleopInit = False;
 				testInit = False;
 				disabledInit = False;
 			}
 			//Autonomous Iterative Dytor
-			engine.AutonomousCallback(&elonMemory);
+			engine.AutonomousCallback(&elonMemory, newInput);
 
 		}else if(IsOperatorControl() && IsEnabled()){
 			if(!autonomousInit){
@@ -919,14 +942,14 @@ void ELON::RobotMain(){
 				ds->InTest(False);
 				ds->InDisabled(False);
 				ELON::OperatorControl();
-				engine.InitTeleop(&elonMemory);
+				engine.InitTeleop(&elonMemory, newInput);
 				autonomousInit = False;
 				teleopInit = True;
 				testInit = False;
 				disabledInit = False;
 			}
 			//Teleop Iterative Dytor
-			engine.TeleopCallback(&elonMemory);
+			engine.TeleopCallback(&elonMemory, newInput);
 
 		}else if(IsTest() && IsEnabled()){
 			if(!autonomousInit){
@@ -936,14 +959,14 @@ void ELON::RobotMain(){
 				ds->InTest(True);
 				ds->InDisabled(False);
 				ELON::Test();
-				engine.InitTest(&elonMemory);
+				engine.InitTest(&elonMemory, newInput);
 				autonomousInit = False;
 				teleopInit = False;
 				testInit = True;
 				disabledInit = False;
 			}
 			//Test Iterative Dytor
-			engine.TestCallback(&elonMemory);
+			engine.TestCallback(&elonMemory, newInput);
 
 		}else if(IsDisabled()){
 			if(!autonomousInit){
@@ -953,14 +976,14 @@ void ELON::RobotMain(){
 				ds->InTest(False);
 				ds->InDisabled(True);
 				ELON::Disabled();
-				engine.InitDisabled(&elonMemory);
+				engine.InitDisabled(&elonMemory, newInput);
 				autonomousInit = False;
 				teleopInit = False;
 				testInit = False;
 				disabledInit = True;
 			}
 			//Disabled Iterative Dytor
-			engine.DisabledCallback(&elonMemory);
+			engine.DisabledCallback(&elonMemory, newInput);
 
 		}
 
@@ -1006,7 +1029,7 @@ void ELON::RobotMain(){
 	delete fastThread;
 
 	//Memory shutdown
-	munmap(totalElonMemoryBlock, ELON_TOTAL_STORAGE_SIZE);
+	munmap(ehlState.totalELONMemoryBlock, ELON_TOTAL_STORAGE_SIZE);
 
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;

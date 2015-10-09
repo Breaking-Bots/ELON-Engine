@@ -31,6 +31,33 @@
 #define ELONEngineBinary ("/home/lvuser/libELON.so")
 #define ELONEngineTempBinary ("/home/lvuser/libELON_temp.so")
 
+
+#define _A 0
+#define _B 1
+#define _X 2
+#define _Y 3
+#define _LB 4
+#define _RB 5
+#define _BACK 6
+#define _START 7
+#define _L3 8
+#define _R3 9
+#define NUM_BUTTONS 10
+
+#define _LX 0
+#define _LY 1
+#define _LT 2
+#define _RT 3
+#define _RX 4
+#define _RY 5
+#define NUM_AXES 6
+
+#define _UP 0
+#define _RIGHT 90
+#define _DOWN 180
+#define _LEFT 270
+#define NUM_DPAD 4
+
 #define DEADZONE (0.25f)
 #define DEADZONE_SQ (DEADZONE * DEADZONE)
 #define TRIGGER_DEADZONE (0.06f)

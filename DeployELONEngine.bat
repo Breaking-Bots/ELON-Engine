@@ -17,5 +17,5 @@ arm-frc-linux-gnueabi-g++ -shared %CommonCompilerFlags% %CommonLinkerFlags% -fme
 popd
 
 echo Deploying libELON.so
-REM ssh lvuser@roboRIO-5428.local "rm /home/lvuser/libELON.so || true;"
+ssh lvuser@roboRIO-5428.local "rm /home/lvuser/libELON.so || true;"
 sftp -oBatchMode=no -b sftpELONEngine lvuser@roboRIO-5428.local

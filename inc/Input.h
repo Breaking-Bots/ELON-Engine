@@ -21,7 +21,7 @@ struct ButtonState{
  */
 struct Gamepad{
 	union{
-		F32 analog[6];
+		F32 analog[NUM_AXES];
 		struct{
 			F32 lx;
 			F32 ly;
@@ -29,10 +29,13 @@ struct Gamepad{
 			F32 rt;
 			F32 rx;
 			F32 ry;
+
+			//All axes must be added above this line
+			F32 axisTerminator;
 		};
 	};
 	union{
-		ButtonState buttons[10];
+		ButtonState buttons[NUM_BUTTONS];
 		struct{
 			ButtonState a;
 			ButtonState b;
@@ -50,12 +53,13 @@ struct Gamepad{
 		};
 	};
 	union{
-		ButtonState dpad[4];
+		ButtonState dpad[NUM_DPAD];
 		struct{
 			ButtonState up;
 			ButtonState down;
 			ButtonState left;
 			ButtonState right;
+
 			//All dpad buttons must be added above this line
 			ButtonState dpadTerminator;
 		};
@@ -71,7 +75,7 @@ struct Input{
 
 inline Gamepad* GetGamepad(Input* input, U32 port){
 	if(port > sizeofArr(input->gamepads)){
-		return input->gamepads[0];
+		return &(input->gamepads[0]);
 	}
 	return &(input->gamepads[port]);
 }
@@ -138,6 +142,14 @@ B32 L3Released(Gamepad* gamepad);
 
 B32 R3Released(Gamepad* gamepad);
 
+B32 UP(Gamepad* gamepad);
+
+B32 DOWN(Gamepad* gamepad);
+
+B32 LEFT(Gamepad* gamepad);
+
+B32 RIGHT(Gamepad* gamepad);
+
 F32 LX(Gamepad* gamepad);
 
 F32 LY(Gamepad* gamepad);
@@ -150,7 +162,6 @@ F32 LT(Gamepad* gamepad);
 
 F32 RT(Gamepad* gamepad);
 
-I32 DPAD(Gamepad* gamepad);
 
 InputType GetInputType(Gamepad* gamepad);
 

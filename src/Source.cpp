@@ -46,6 +46,7 @@ ELON_CALLBACK(TestCallback){
 		EnableChassis(memory, !IsChassisEnabled(memory));
 	}
 	//memory->Cout("%u", DecToBin(Buttons(gamepad)));
+	memory->Cout("%.04f  -  %.04f  -  %.04f  -  %.04f  -  %.04f  -  %.04f", lx, ly, rx, ry, lt, rt);
 
 	ELONDrive(memory, ly, rx);
 	Elevate(memory, RB(gamepad) - LB(gamepad));

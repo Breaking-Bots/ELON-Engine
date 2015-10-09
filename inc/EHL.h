@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 class Task;
-class std::string;
 
 /*******************************************************************
  * Util					                                           *
@@ -116,6 +115,8 @@ struct File{
 	void* data;
 	U32 size;
 };
+
+U32 GetFileSize(std::string filename, I32 fd = 0, B32 useFD = False, B32 ignoreFailure = False);
 
 /**
  * Reads entire file and returns File struct
