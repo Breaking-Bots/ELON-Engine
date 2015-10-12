@@ -32,8 +32,6 @@ typedef uint64_t U64;
 typedef float F32;
 typedef double F64;
 
-typedef void* MODULE;
-
 #define I8_MIN INT8_MIN
 #define I16_MIN INT16_MIN
 #define I32_MIN INT32_MIN

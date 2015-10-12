@@ -9,6 +9,10 @@ extern "C" {
 
 class Task;
 
+typedef void* MODULE;
+
+typedef I32 HANDLE;
+
 /*******************************************************************
  * Util					                                           *
  *******************************************************************/
@@ -314,6 +318,17 @@ void UpdateInput(DriverStation* ds, ELONMemory* memory);
 struct EHLState{
 	U32 totalSize;
 	void* totalELONMemoryBlock;
+	HANDLE recordingHandle;
+	U32 inputRecordingIndex;
+	HANDLE playBackHandle;
+	U32 inputPlayBackIndex;
+	HANDLE lastTeleopRecordingHandle;
+	U32 lastTeleopRecordingIndex;
+};
+
+struct EHLRecordedInput{
+	U32 inputCount;
+	Input* inputStream;
 };
 
 
@@ -327,10 +342,6 @@ struct EHLState{
 class ELON : public SampleRobot{
 	//TODO: Make these values
 	Task* fastThread;
-	B32 autonomousInit = False;
-	B32 teleopInit = False;
-	B32 testInit = False;
-	B32 disabledInit = False;
 public:
 	ELON();
 

@@ -20,8 +20,8 @@
 #include <unistd.h>
 #include "stdio.h"
 #include "stdarg.h"
-#include "../inc/EHL.h"
-#include "../inc/ELONEngine.h"
+#include "EHL.h"
+#include "ELONEngine.h"
 
 
 
@@ -197,7 +197,7 @@ inline U32 TiB(U32 x){
 	return GiB(x) * 1024;
 }
 
-U32 GetFileSize(std::string filename, I32 fd, B32 useFD, B32 ignoreFailure){
+U32 GetFileSize(std::string filename, HANDLE fd, B32 useFD, B32 ignoreFailure){
 	struct stat statBuffer;
 	U32 result = 0;
 	if(!useFD){
@@ -217,7 +217,7 @@ File ReadEntireFile(std::string filename, B32 ignoreFailure){
 	File result = {};
 	struct stat statBuffer;
 
-	I32 fileDescriptor = open(filename.c_str(), O_RDONLY);
+	HANDLE fileDescriptor = open(filename.c_str(), O_RDONLY);
 	if(fileDescriptor != -1){
 		result.size = GetFileSize(filename, fileDescriptor, True, ignoreFailure);
 		if(result.size){
@@ -249,7 +249,7 @@ File ReadEntireFile(std::string filename, B32 ignoreFailure){
 B32 WriteEntireFile(std::string filename, U32 memorySize, void* memory, B32 ignoreFailure){
 	B32 result = false;
 
-	I32 fileDescriptor = open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+	HANDLE fileDescriptor = open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 	if(fileDescriptor != -1){
 		U32 bytesWritten = write(fileDescriptor, memory, memorySize);
 		result = bytesWritten == memorySize;
@@ -686,7 +686,6 @@ I32 FastThreadRuntime(U32 targetHz){
  * Input					                                       *
  *******************************************************************/
 
-
 intern void ProcessDigitalButton(U32 buttonBitSet, ButtonState* oldState, U32 buttonBit, ButtonState* newState){
 	newState->endedDown = ((buttonBitSet & buttonBit) == buttonBit);
 	newState->halfTransitionCount = (oldState->endedDown != newState->endedDown) ? 1 : 0;
@@ -722,8 +721,8 @@ intern void ProcessStickInput(F32* _x, F32* _y, InputType inputType){
 		}
 	}
 
-	*_x = x; //TODO: Check if this is unnecessary
-	*_y = y; //TODO: Check if this is unnecessary
+	*_x = x;
+	*_y = y;
 }
 
 intern void ProcessTriggerInput(F32* _t, InputType inputType){
@@ -740,7 +739,7 @@ intern void ProcessTriggerInput(F32* _t, InputType inputType){
 		}
 	}
 
-	*_t = t; //TODO: Check if this is unnecessary
+	*_t = t;
 }
 
 void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
@@ -796,12 +795,82 @@ void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
 	}
 }
 
+intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIndex){
+	state->lastTeleopRecordingIndex = lastTeleopRecordingIndex;
+	char* filename = "InputRecording.eid";
+	state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+
+	if(state->totalSize >= GiB(2)){
+		Cerr("Too much memory allocated to write to input data file");
+	}
+
+	write(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+}
+
+//TODO: Lazily write block to memory and use memory copy instead?
+intern void BeginInputRecording(EHLState* state, U32 inputRecordingIndex){
+	state->inputRecordingIndex = inputRecordingIndex;
+	char* filename = "InputRecording.eid";
+	state->recordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+
+	if(state->totalSize >= GiB(2)){
+		Cerr("Too much memory allocated to write to input data file");
+	}
+
+	write(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+}
+
+intern void EndInputRecording(EHLState* state){
+	close(state->recordingHandle);
+	state->inputRecordingIndex = 0;
+}
+
+intern void BeginInputPlayBack(EHLState* state, U32 inputRecordingIndex){
+	state->inputPlayBackIndex = inputRecordingIndex;
+	char* filename = "InputRecording.eid";
+	state->playBackHandle = open(filename, O_RDONLY);
+
+	read(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+}
+
+intern void EndInputPlayBack(EHLState* state){
+	close(state->playBackHandle);
+	state->inputPlayBackIndex = 0;
+}
+
+intern void RecordInput(EHLState* state, Input* input){
+	write(state->recordingHandle, input, sizeof(*input));
+}
+
+intern void PlayBackInput(EHLState* state, Input* input){
+	if(read(state->playBackHandle, input, sizeof(*input)) < 1){
+		U32 playBackIndex = state->inputPlayBackIndex;
+		EndInputPlayBack(state);
+		BeginInputPlayBack(state, playBackIndex);
+		read(state->playBackHandle, input, sizeof(*input));
+	}
+}
+
+intern void ProcessEHLInputProtocols(EHLState* state, Input* input){
+	for(U32 i = 0; i < NUM_GAMEPADS; i++){
+		if(input->gamepads[i].a.endedDown && !input->gamepads[i].a.halfTransitionCount){
+			if(state->inputRecordingIndex == 0){
+				BeginInputRecording(state, 1);
+			}else{
+				EndInputRecording(state);
+				BeginInputPlayBack(state, 1);
+			}
+		}
+	}
+}
+
+
 /*******************************************************************
  * ELON Class				                                       *
  *******************************************************************/
 
-U32 ELON_PERMANENT_STORAGE_SIZE = (MiB(16));
-U32 ELON_TRANSIENT_STORAGE_SIZE = (MiB(16));
+U32 ELON_PERMANENT_STORAGE_SIZE = (MiB(1));
+U32 ELON_TRANSIENT_STORAGE_SIZE = (MiB(1));
 U32 ELON_TOTAL_STORAGE_SIZE  = (ELON_PERMANENT_STORAGE_SIZE + ELON_TRANSIENT_STORAGE_SIZE);
 
 ELON::ELON(){
@@ -822,7 +891,6 @@ void ELON::RobotInit(){
 }
 
 void ELON::RobotMain(){
-	Cout("Starting ELON Hardware Layer Core Loop");
 
 	LiveWindow* lw = LiveWindow::GetInstance();
 	DriverStation* ds = DriverStation::GetInstance();
@@ -836,7 +904,7 @@ void ELON::RobotMain(){
 	EHLState ehlState = {};
 	ELONMemory elonMemory;
 
-#if 0
+#if 1
 	void* baseAddress = rcast<void*>(U32((GiB(4) - 1) - ((ELON_TOTAL_STORAGE_SIZE / getpagesize()) + 1) * getpagesize()));
 #else
 	void* baseAddress = NULL;
@@ -897,10 +965,15 @@ void ELON::RobotMain(){
 	//ELONEngine startup
 	ELONEngine engine = LoadELONEngine(ELONEngineBinary);
 	U32 loadCounter = 0;
+	B32 autonomousInit = False;
+	B32 teleopInit = False;
+	B32 testInit = False;
+	B32 disabledInit = False;
 
 	F64 targetMSPerFrame = 1000.0 / CORE_THREAD_HZ;
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
+	Cout("Starting ELON Hardware Layer Core Loop");
 	for(;;){
 		//Reload ELONEngine
 		U32 newELONEngineWriteTime = GetLastWriteTime(ELONEngineBinary);
@@ -915,6 +988,7 @@ void ELON::RobotMain(){
 
 		//Update Input
 		UpdateInput(ds, newInput, oldInput);
+		ProcessEHLInputProtocols(&ehlState, newInput);
 
 		//Executing user function based on robot state
 		if(IsAutonomous() && IsEnabled()){
@@ -952,6 +1026,17 @@ void ELON::RobotMain(){
 			engine.TeleopCallback(&elonMemory, newInput);
 
 		}else if(IsTest() && IsEnabled()){
+
+			//Input Recording
+			if(ehlState.inputRecordingIndex){
+				RecordInput(&ehlState, newInput);
+			}
+
+			//Input PlayBack
+			if(ehlState.inputPlayBackIndex){
+				PlayBackInput(&ehlState, newInput);
+			}
+
 			if(!autonomousInit){
 				lw->SetEnabled(True);
 				ds->InAutonomous(False);

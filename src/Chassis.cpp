@@ -5,7 +5,7 @@
  *      Author: Zaeem
  */
 
-#include "../inc/ELONEngine.h"
+#include "ELONEngine.h"
 
 intern void SetLeftRightMotorValues(ELONMemory* memory, F32 leftMgntd, F32 rightMgntd){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
@@ -19,10 +19,10 @@ intern void SetLeftRightMotorValues(ELONMemory* memory, F32 leftMgntd, F32 right
 intern void SetMotorValues(ELONMemory* memory, F32 motor0, F32 motor1, F32 motor2, F32 motor3){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	ChassisState state = elonState->chassisState;
-	state.motorValues[0] = motor0;
-	state.motorValues[1] = motor1;
-	state.motorValues[2] = motor2;
-	state.motorValues[3] = motor3;
+	state.motorValues[0] = memory->Clamp(motor0, -1.0f, 1.0f) * state.invertedMotors[0];
+	state.motorValues[1] = memory->Clamp(motor1, -1.0f, 1.0f) * state.invertedMotors[1];
+	state.motorValues[2] = memory->Clamp(motor2, -1.0f, 1.0f) * state.invertedMotors[2];
+	state.motorValues[3] = memory->Clamp(motor3, -1.0f, 1.0f) * state.invertedMotors[3];
 }
 
 void RawDrive(ELONMemory* memory, F32 mgntd, F32 curve){
@@ -48,12 +48,10 @@ void RawDrive(ELONMemory* memory, F32 mgntd, F32 curve){
 }
 
 void TankDrive(ELONMemory* memory, F32 leftMgntd, F32 rightMgntd){
-	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	SetLeftRightMotorValues(memory, leftMgntd,rightMgntd);
 }
 
 void ELONDrive(ELONMemory* memory, F32 fwdMgntd, F32 turnMgntd){
-	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	fwdMgntd = memory->Clamp(fwdMgntd, -1.0f, 1.0f);
 	turnMgntd = memory->Clamp(turnMgntd, -1.0f, 1.0f);
 	if(fwdMgntd > 0.0f){

@@ -16,6 +16,16 @@ arm-frc-linux-gnueabi-g++ -shared %CommonCompilerFlags% %CommonLinkerFlags% -fme
 
 popd
 
-echo Deploying libELON.so
-ssh lvuser@roboRIO-5428.local "rm /home/lvuser/libELON.so || true;"
-sftp -oBatchMode=no -b sftpELONEngine lvuser@roboRIO-5428.local
+if errorlevel 0 (
+	echo .
+	echo ELONEngine Compilation Successful
+	echo Deploying libELON.so
+	ssh lvuser@roboRIO-5428.local "rm /home/lvuser/libELON.so || true;"
+	sftp -oBatchMode=no -b sftpELONEngine lvuser@roboRIO-5428.local
+) else (
+	echo .
+   	echo ELONEngine Compilation Failed with status %errorlevel%
+	echo Aborting Deployment
+)
+
+echo .

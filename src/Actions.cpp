@@ -5,7 +5,7 @@
  *      Author: Zaeem
  */
 
-#include "../inc/ELONEngine.h"
+#include "ELONEngine.h"
 
 Action::Action(ELONMemory* memory, F64 timeout):memory(memory), timeout(timeout){
 

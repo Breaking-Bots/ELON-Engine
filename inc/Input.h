@@ -12,7 +12,7 @@ enum InputType{
  * Gamepad button state
  */
 struct ButtonState{
-	I32 halfTransitionCount;
+	U32 halfTransitionCount;
 	B32 endedDown;
 };
 
@@ -30,8 +30,8 @@ struct Gamepad{
 			F32 rx;
 			F32 ry;
 
-			//All axes must be added above this line
-			F32 axisTerminator;
+			//All analogs must be added above this line
+			F32 analogTerminator;
 		};
 	};
 	union{
@@ -82,87 +82,30 @@ inline Gamepad* GetGamepad(Input* input, U32 port){
 
 U32 Buttons(Gamepad* gamepad);
 
-B32 A(Gamepad* gamepad);
+B32 Button(Gamepad* gamepad, U32 buttonIndex);
 
-B32 B(Gamepad* gamepad);
+B32 ButtonTapped(Gamepad* gamepad, U32 buttonIndex);
 
-B32 X(Gamepad* gamepad);
+B32 ButtonHeld(Gamepad* gamepad, U32 buttonIndex);
 
-B32 Y(Gamepad* gamepad);
+B32 ButtonReleased(Gamepad* gamepad, U32 buttonIndex);
 
-B32 LB(Gamepad* gamepad);
+B32 ButtonPostRealeased(Gamepad* gamepad, U32 buttonIndex);
 
-B32 RB(Gamepad* gamepad);
+B32 DPAD(Gamepad* gamepad, U32 dpadIndex);
 
-B32 BACK(Gamepad* gamepad);
+B32 DPADTapped(Gamepad* gamepad, U32 dpadIndex);
 
-B32 START(Gamepad* gamepad);
+B32 DPADHeld(Gamepad* gamepad, U32 dpadIndex);
 
-B32 L3(Gamepad* gamepad);
+B32 DPADReleased(Gamepad* gamepad, U32 dpadIndex);
 
-B32 R3(Gamepad* gamepad);
+B32 DPADPostRealeased(Gamepad* gamepad, U32 dpadIndex);
 
-B32 ATapped(Gamepad* gamepad);
-
-B32 BTapped(Gamepad* gamepad);
-
-B32 XTapped(Gamepad* gamepad);
-
-B32 YTapped(Gamepad* gamepad);
-
-B32 LBTapped(Gamepad* gamepad);
-
-B32 RBTapped(Gamepad* gamepad);
-
-B32 BACKTapped(Gamepad* gamepad);
-
-B32 STARTTapped(Gamepad* gamepad);
-
-B32 L3Tapped(Gamepad* gamepad);
-
-B32 R3Tapped(Gamepad* gamepad);
-
-B32 AReleased(Gamepad* gamepad);
-
-B32 BReleased(Gamepad* gamepad);
-
-B32 XReleased(Gamepad* gamepad);
-
-B32 YReleased(Gamepad* gamepad);
-
-B32 LBReleased(Gamepad* gamepad);
-
-B32 RBReleased(Gamepad* gamepad);
-
-B32 BACKReleased(Gamepad* gamepad);
-
-B32 STARTReleased(Gamepad* gamepad);
-
-B32 L3Released(Gamepad* gamepad);
-
-B32 R3Released(Gamepad* gamepad);
-
-B32 UP(Gamepad* gamepad);
-
-B32 DOWN(Gamepad* gamepad);
-
-B32 LEFT(Gamepad* gamepad);
-
-B32 RIGHT(Gamepad* gamepad);
-
-F32 LX(Gamepad* gamepad);
-
-F32 LY(Gamepad* gamepad);
-
-F32 RX(Gamepad* gamepad);
-
-F32 RY(Gamepad* gamepad);
-
-F32 LT(Gamepad* gamepad);
-
-F32 RT(Gamepad* gamepad);
-
+F32 Analog(Gamepad* gamepad, U32 stickIndex);
 
 InputType GetInputType(Gamepad* gamepad);
+
+void SetInputType(Gamepad* gamepad, InputType inputType);
 
 #endif

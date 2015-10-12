@@ -31,7 +31,6 @@
 #define ELONEngineBinary ("/home/lvuser/libELON.so")
 #define ELONEngineTempBinary ("/home/lvuser/libELON_temp.so")
 
-
 #define _A 0
 #define _B 1
 #define _X 2
@@ -53,9 +52,9 @@
 #define NUM_AXES 6
 
 #define _UP 0
-#define _RIGHT 90
-#define _DOWN 180
-#define _LEFT 270
+#define _DOWN 1
+#define _LEFT 2
+#define _RIGHT 3
 #define NUM_DPAD 4
 
 #define DEADZONE (0.25f)
