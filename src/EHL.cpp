@@ -797,9 +797,16 @@ void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
 
 intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIndex){
 	state->lastTeleopRecordingIndex = lastTeleopRecordingIndex;
-	char* filename = "InputRecording.eid";
-	state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 
+	time_t t = time(NULL);
+	struct tm* time = localtime(&t);
+	char str_time[100];
+	strftime(str_time, sizeof(str_time) - 1, "_%Y%m%d%H%M%s.eid", time);
+	char filename[256];
+	filename = ELONTeleopRecordingDataFile;
+	strcat(filename, str_time);
+
+	state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 	if(state->totalSize >= GiB(2)){
 		Cerr("Too much memory allocated to write to input data file");
 	}
@@ -807,11 +814,15 @@ intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIn
 	write(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
 }
 
+intern void EndTeleopInputRecording(EHLState* state){
+	close(state->lastTeleopRecordingHandle);
+	state->lastTeleopRecordingIndex = 0;
+}
+
 //TODO: Lazily write block to memory and use memory copy instead?
 intern void BeginInputRecording(EHLState* state, U32 inputRecordingIndex){
 	state->inputRecordingIndex = inputRecordingIndex;
-	char* filename = "InputRecording.eid";
-	state->recordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+	state->recordingHandle = open(ELONInputRecordingDataFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 
 	if(state->totalSize >= GiB(2)){
 		Cerr("Too much memory allocated to write to input data file");
@@ -827,8 +838,7 @@ intern void EndInputRecording(EHLState* state){
 
 intern void BeginInputPlayBack(EHLState* state, U32 inputRecordingIndex){
 	state->inputPlayBackIndex = inputRecordingIndex;
-	char* filename = "InputRecording.eid";
-	state->playBackHandle = open(filename, O_RDONLY);
+	state->playBackHandle = open(ELONInputRecordingDataFile, O_RDONLY);
 
 	read(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
 }
@@ -993,6 +1003,10 @@ void ELON::RobotMain(){
 		//Executing user function based on robot state
 		if(IsAutonomous() && IsEnabled()){
 			if(!autonomousInit){
+				if(ehlState.lastTeleopRecordingIndex){
+					EndTeleopInputRecording(&ehlState);
+				}
+
 				lw->SetEnabled(False);
 				ds->InAutonomous(True);
 				ds->InOperatorControl(False);
@@ -1010,6 +1024,11 @@ void ELON::RobotMain(){
 
 		}else if(IsOperatorControl() && IsEnabled()){
 			if(!autonomousInit){
+				if(ehlState.lastTeleopRecordingIndex){
+					EndTeleopInputRecording(&ehlState);
+				}
+
+				BeginTeleopInputRecording(&ehlState, 1);
 				lw->SetEnabled(False);
 				ds->InAutonomous(False);
 				ds->InOperatorControl(True);
@@ -1038,6 +1057,10 @@ void ELON::RobotMain(){
 			}
 
 			if(!autonomousInit){
+				if(ehlState.lastTeleopRecordingIndex){
+					EndTeleopInputRecording(&ehlState);
+				}
+
 				lw->SetEnabled(True);
 				ds->InAutonomous(False);
 				ds->InOperatorControl(False);
@@ -1055,6 +1078,10 @@ void ELON::RobotMain(){
 
 		}else if(IsDisabled()){
 			if(!autonomousInit){
+				if(ehlState.lastTeleopRecordingIndex){
+					EndTeleopInputRecording(&ehlState);
+				}
+
 				lw->SetEnabled(False);
 				ds->InAutonomous(False);
 				ds->InOperatorControl(False);

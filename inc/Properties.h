@@ -30,6 +30,8 @@
 
 #define ELONEngineBinary ("/home/lvuser/libELON.so")
 #define ELONEngineTempBinary ("/home/lvuser/libELON_temp.so")
+#define ELONInputRecordingDataFile ("/home/lvuser/InputRecording.eid")
+#define ELONTeleopRecordingDataFile ("/home/lvuser/TeleopRecording")
 
 #define _A 0
 #define _B 1
