@@ -40,15 +40,17 @@ ELON_CALLBACK(TestCallback){
 	F32 ry = Analog(gamepad, _RY);
 	F32 lt = Analog(gamepad, _LT);
 	F32 rt = Analog(gamepad, _RT);
-
+	//memory->Cout("0x%x", Buttons(gamepad));
+	memory->Cout("%d", ButtonTapped(gamepad, _B));
 	if(ButtonTapped(gamepad, _START)){
 		EnableChassis(memory, !IsChassisEnabled(memory));
 	}
 	//memory->Cout("%u", DecToBin(Buttons(gamepad)));
-	memory->Cout("%.04f  -  %.04f  -  %.04f  -  %.04f  -  %.04f  -  %.04f", lx, ly, rx, ry, lt, rt);
+	//memory->Cout("%.04f  -  %.04f  -  %.04f  -  %.04f  -  %.04f  -  %.04f", lx, ly, rx, ry, lt, rt);
 
 	ELONDrive(memory, ly, rx);
 	Elevate(memory, Button(gamepad, _RB) - Button(gamepad, _LB));
+	//memory->Cout("%f", state->elevatorState.motorValue);
 
 	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 	state->elevatorState.elevatorMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);

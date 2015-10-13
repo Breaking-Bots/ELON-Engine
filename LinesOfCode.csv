@@ -1,20 +1,20 @@
 Filename , LOC 
 Actions.h , 92 
 Chassis.h , 40 
-EHL.h , 287 
+EHL.h , 285 
 Elevator.h , 17 
 ELONEngine.h , 11 
 Input.h , 86 
 Memory.h , 63 
-Properties.h , 49 
+Properties.h , 51 
 Source.h , 15 
 Util.h , 82 
 Actions.cpp , 53 
 Chassis.cpp , 101 
-EHL.cpp , 955 
+EHL.cpp , 993 
 Elevator.cpp , 22 
 Input.cpp , 53 
 Memory.cpp , 7 
-Source.cpp , 55 
+Source.cpp , 58 
 Util.cpp , 7 
-Grand Total , 1995  
+Grand Total , 2036  

@@ -752,10 +752,14 @@ void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
 
 		//Processing buttons
 		U32 buttonBitSet = ds->GetStickButtons(i);
+		//Cout("%d", buttonBitSet);
 
 		for(U32 j = 0; j < NUM_BUTTONS; j++){
-			ProcessDigitalButton(buttonBitSet, &oldGamepad->buttons[i], j, &newGamepad->buttons[i]);
+			int buttonBit = 1 << j;
+			ProcessDigitalButton(buttonBitSet, &oldGamepad->buttons[j], buttonBit, &newGamepad->buttons[j]);
 		}
+
+		//Cout("%d", newGamepad->x.endedDown);
 
 		//Processing DPAD values
 		I32 dpad = ds->GetStickPOV(i, 0);
@@ -801,10 +805,9 @@ intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIn
 	time_t t = time(NULL);
 	struct tm* time = localtime(&t);
 	char str_time[100];
-	strftime(str_time, sizeof(str_time) - 1, "_%Y%m%d%H%M%s.eid", time);
+	strftime(str_time, sizeof(str_time) - 1, "_%Y%m%d%H%M%s", time);
 	char filename[256];
-	filename = ELONTeleopRecordingDataFile;
-	strcat(filename, str_time);
+	sprintf(filename, "%s%s.eid", ELONTeleopRecordingDataFileName, str_time);
 
 	state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 	if(state->totalSize >= GiB(2)){
