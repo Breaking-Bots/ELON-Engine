@@ -50,15 +50,16 @@ struct ChassisState{
 	U32 nMotors = CHASSIS_NUM_MOTORS; //Number of used motors
 	B32 isInitialized; //Initialization flag
 	B32 chassisEnabled; //Allow chassis control flag
-	I8 invertedMotors[CHASSIS_NUM_MOTORS]; //Array of motor inversions
-
+	I32 invertedMotors[CHASSIS_NUM_MOTORS]; //Array of motor inversions
+	F32 lastGyroAngleDeg;
+	F32 gyroAngleDeg;
 };
 
 struct ElevatorState{
 	F32 motorValue; //Motor speed value
 	F32 elevatorMagnitude; //Magnitude of elevator speed
 	B32 isInitialized; //Initialization flag
-	I8 invertedMotor; //Motor inversion
+	I32 invertedMotor; //Motor inversion
 };
 
 struct ELONState{

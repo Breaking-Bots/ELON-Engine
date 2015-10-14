@@ -3,6 +3,8 @@
 
 #include "Util.h"
 
+#define RECORD_STATE 0
+
 #define DISABLE_FAST_THREAD 1
 #define DISABLE_CORE_THREAD 0
 
@@ -22,7 +24,7 @@
 
 #define GYRO_PORT 0
 
-#define MIN_SPEED (0.30f)
+#define MIN_SPEED (0.35f)
 #define DEF_SPEED (0.65f)
 #define MAX_SPEED (1.00f)
 

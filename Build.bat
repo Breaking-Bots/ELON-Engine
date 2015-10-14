@@ -8,7 +8,7 @@ IF NOT EXIST temp\\ELONHardwareLayer mkdir temp\\ELONHardwareLayer
 
 pushd temp\\ELONEngine
 
-set CommonCompilerFlags= -std=c++1y "-IC:\\Users\\Zaeem/wpilib/cpp/current/include" "-IZ:\\FRC\\Repositories\\ELON-Engine\\inc" "-IZ:\\FRC\\Workspace\\ELON Engine Prototype\\inc" -O0 -g3 -w
+set CommonCompilerFlags= -std=c++1y -fext-numeric-literals "-IC:\\Users\\Zaeem/wpilib/cpp/current/include" "-IZ:\\FRC\\Repositories\\ELON-Engine\\inc" "-IZ:\\FRC\\Workspace\\ELON Engine Prototype\\inc" -O0 -g3 -w
 set CommonLinkerFlags= -shared-libgcc -fPIC
 
 set ELONEngineSourceFiles= "..\\..\\src\\Util.cpp" "..\\..\\src\\Memory.cpp" "..\\..\\src\\Input.cpp" "..\\..\\src\\Chassis.cpp" "..\\..\\src\\Elevator.cpp" "..\\..\\src\\Actions.cpp" "..\\..\\src\\Source.cpp"

@@ -149,7 +149,7 @@ F32_CALLBACK_F32(PrincipalAngleRad){
 }
 
 F32_CALLBACK_F32(MinDistAngleDeg){
-	return (x - (I32)(x/360) * 360) - 180.0f; //TODO: Test
+	return ((x - 180.0f) - (I32)((x - 180.0f)/360) * 360); //TODO: Test
 }
 
 F32_CALLBACK_F32(MinDistAngleRad){
@@ -382,14 +382,14 @@ void InitializeElevator(){
 
 void UpdateElevator(ELONMemory* memory){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
-	ElevatorState* state = scast<ElevatorState*>(&(elonState->elevatorState));
+	ElevatorState* state = &(elonState->elevatorState);
 	if(!state->isInitialized){
 		state->invertedMotor = 1;
 		state->elevatorMagnitude = DEF_SPEED;
 		state->isInitialized = True;
 	}
 	CRITICAL_REGION(elevatorMotorLock);
-		//elevatorMotor.Set(state->motorValue);
+		elevatorMotor->Set(state->motorValue);
 	END_REGION;
 }
 
@@ -403,23 +403,29 @@ void TerminateElevator(){
  *******************************************************************/
 #if 1
 Talon* motors[CHASSIS_NUM_MOTORS];
+Gyro* gyro;
 
 MUTEX_ID chassisMotorLock;
+MUTEX_ID chassisGyroLock;
 
 void InitializeChassis(){
 	chassisMotorLock = initializeMutexNormal();
+	chassisGyroLock = initializeMutexNormal();
 	motors[0] = new Talon(CHASSIS_PORT_FL);
 	motors[1] = new Talon(CHASSIS_PORT_BL);
 	motors[2] = new Talon(CHASSIS_PORT_FR);
 	motors[3] = new Talon(CHASSIS_PORT_BR);
+	gyro = new Gyro(GYRO_PORT);
+	gyro->SetSensitivity(GYRO_SENSITIVITY);
 	Cout("Chassis Initialized");
 }
 
 void UpdateChassis(ELONMemory* memory){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
-	ChassisState* state = scast<ChassisState*>(&(elonState->chassisState));
+	ChassisState* state = &(elonState->chassisState);
 
 	if(!state->isInitialized){
+		state->nMotors = CHASSIS_NUM_MOTORS;
 		for(U32 i = 0; i < state->nMotors; i++){
 			state->invertedMotors[i] = -1;
 		}
@@ -432,12 +438,18 @@ void UpdateChassis(ELONMemory* memory){
 			motors[i]->Set(state->motorValues[i]);
 		}
 	END_REGION;
+	CRITICAL_REGION(chassisGyroLock);
+		state->lastGyroAngleDeg = state->gyroAngleDeg;
+		state->gyroAngleDeg = gyro->GetAngle();
+	END_REGION;
 }
 
 void TerminateChassis(){
+	delete gyro;
 	for(U32 i = 0; i < CHASSIS_NUM_MOTORS; i++){
 		delete motors[i];
 	}
+	deleteMutex(chassisGyroLock);
 	deleteMutex(chassisMotorLock);
 }
 #endif
@@ -813,8 +825,9 @@ intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIn
 	if(state->totalSize >= GiB(2)){
 		Cerr("Too much memory allocated to write to input data file");
 	}
-
+#if RECORD_STATE
 	write(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+#endif
 }
 
 intern void EndTeleopInputRecording(EHLState* state){
@@ -830,24 +843,30 @@ intern void BeginInputRecording(EHLState* state, U32 inputRecordingIndex){
 	if(state->totalSize >= GiB(2)){
 		Cerr("Too much memory allocated to write to input data file");
 	}
-
+#if RECORD_STATE
 	write(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+#endif
 }
 
 intern void EndInputRecording(EHLState* state){
-	close(state->recordingHandle);
+	if(state->recordingHandle){
+		close(state->recordingHandle);
+	}
 	state->inputRecordingIndex = 0;
 }
 
 intern void BeginInputPlayBack(EHLState* state, U32 inputRecordingIndex){
 	state->inputPlayBackIndex = inputRecordingIndex;
 	state->playBackHandle = open(ELONInputRecordingDataFile, O_RDONLY);
-
+#if RECORD_STATE
 	read(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+#endif
 }
 
 intern void EndInputPlayBack(EHLState* state){
-	close(state->playBackHandle);
+	if(state->playBackHandle){
+		close(state->playBackHandle);
+	}
 	state->inputPlayBackIndex = 0;
 }
 
@@ -866,13 +885,20 @@ intern void PlayBackInput(EHLState* state, Input* input){
 
 intern void ProcessEHLInputProtocols(EHLState* state, Input* input){
 	for(U32 i = 0; i < NUM_GAMEPADS; i++){
-		if(input->gamepads[i].a.endedDown && !input->gamepads[i].a.halfTransitionCount){
-			if(state->inputRecordingIndex == 0){
-				BeginInputRecording(state, 1);
-			}else{
-				EndInputRecording(state);
-				BeginInputPlayBack(state, 1);
-			}
+		if(input->gamepads[i].a.endedDown && input->gamepads[i].a.halfTransitionCount){
+			EndInputRecording(state);
+			EndInputPlayBack(state);
+			BeginInputRecording(state, 1);
+			Cout("Began recording input at index: %d", state->inputRecordingIndex);
+		}else if(input->gamepads[i].x.endedDown && input->gamepads[i].x.halfTransitionCount){
+			EndInputRecording(state);
+			EndInputPlayBack(state);
+			BeginInputPlayBack(state, 1);
+			Cout("Began input playBack at index: %d", state->inputPlayBackIndex);
+		}else if(input->gamepads[i].back.endedDown && input->gamepads[i].back.halfTransitionCount){
+			EndInputRecording(state);
+			EndInputPlayBack(state);
+			Cout("Stopped Recording and PlayBack of input");
 		}
 	}
 }
@@ -1123,6 +1149,11 @@ void ELON::RobotMain(){
 			//TODO: Log
 			Cout("Missed last Core Thread Runtime frame.");
 		}
+
+		//Flip inputs
+		Input* tempInput = newInput;
+		newInput = oldInput;
+		oldInput = tempInput;
 
 		F64 endTime = SystemTime();
 		F64 frameTimeMS = endTime - lastTime;

@@ -9,18 +9,18 @@
 
 void Elevate(ELONMemory* memory, F32 speed){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
-	ElevatorState state = elonState->elevatorState;
-	state.motorValue = memory->Clamp(speed * state.invertedMotor, -1.0f, 1.0f);
+	ElevatorState* state = &elonState->elevatorState;
+	state->motorValue = memory->Clamp(speed * state->invertedMotor * state->elevatorMagnitude, -1.0f, 1.0f);
 }
 
 void SetElevatorMagnitude(ELONMemory* memory, F32 magnitude){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
-	ElevatorState state = elonState->elevatorState;
-	state.elevatorMagnitude = magnitude;
+	ElevatorState* state = &elonState->elevatorState;
+	state->elevatorMagnitude = magnitude;
 }
 
 void InvertElevator(ELONMemory* memory){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
-	ElevatorState state = elonState->elevatorState;
-	state.invertedMotor *= -1;
+	ElevatorState* state = &elonState->elevatorState;
+	state->invertedMotor *= -1;
 }
