@@ -47,4 +47,6 @@ bin/
 .project
 id_rsa
 id_rsa.pub
+*sublime-project
+*sublime-workspace
 
