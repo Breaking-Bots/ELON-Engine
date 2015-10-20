@@ -7,21 +7,17 @@
  *      Author: Zaeem
  */
 
-#include "WPILib.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <dlfcn.h>
-#include <vector>
-#include <queue>
-#include <set>
-#include <algorithm>
 #include <unistd.h>
-#include "stdio.h"
-#include "stdarg.h"
-#include "EHL.h"
+#include <stdio.h>
+#include <stdarg.h>
+#include "WPILib.h"
 #include "ELONEngine.h"
+#include "EHL.h"
 
 
 
@@ -397,7 +393,9 @@ void TerminateElevator(){
 	delete elevatorMotor;
 	deleteMutex(elevatorMotorLock);
 }
+
 #endif
+
 /*******************************************************************
  * Chassis		                                                   *
  *******************************************************************/
@@ -811,23 +809,29 @@ void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
 	}
 }
 
+intern void GetInputFileLocation(EHLState* state, B32 inputStream, U32 slotIndex, U32 destCount, char* dest){
+	sprintf(dest, "%s_%d_%s.eid", ELONInputRecordingDataFileName, slotIndex, inputStream ? "input" : "state");
+}
+
 intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIndex){
-	state->lastTeleopRecordingIndex = lastTeleopRecordingIndex;
+	EHLReplayBuffer* replayBuffer = &state->replayBuffers[lastTeleopRecordingIndex];
+	if(replayBuffer->memoryBlock){
+		state->lastTeleopRecordingIndex = lastTeleopRecordingIndex;
 
-	time_t t = time(NULL);
-	struct tm* time = localtime(&t);
-	char str_time[100];
-	strftime(str_time, sizeof(str_time) - 1, "_%Y%m%d%H%M%s", time);
-	char filename[256];
-	sprintf(filename, "%s%s.eid", ELONTeleopRecordingDataFileName, str_time);
 
-	state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
-	if(state->totalSize >= GiB(2)){
-		Cerr("Too much memory allocated to write to input data file");
-	}
+		time_t t = time(NULL);
+		struct tm* time = localtime(&t);
+		char str_time[100];
+		strftime(str_time, sizeof(str_time) - 1, "_%Y%m%d%H%M%s", time);
+		char filename[256];
+		sprintf(filename, "%s_%s.eid", ELONTeleopRecordingDataFileName, str_time);
+
+		state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 #if RECORD_STATE
-	write(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+		lseek(state->lastTeleopRecordingHandle, state->totalSize, SEEK_SET);
+		memcpy(replayBuffer->memoryBlock, state->totalELONMemoryBlock, state->totalSize);
 #endif
+	}
 }
 
 intern void EndTeleopInputRecording(EHLState* state){
@@ -837,15 +841,17 @@ intern void EndTeleopInputRecording(EHLState* state){
 
 //TODO: Lazily write block to memory and use memory copy instead?
 intern void BeginInputRecording(EHLState* state, U32 inputRecordingIndex){
-	state->inputRecordingIndex = inputRecordingIndex;
-	state->recordingHandle = open(ELONInputRecordingDataFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+	EHLReplayBuffer* replayBuffer = &state->replayBuffers[inputRecordingIndex];
+	if(replayBuffer->memoryBlock){	
 
-	if(state->totalSize >= GiB(2)){
-		Cerr("Too much memory allocated to write to input data file");
-	}
+		state->inputRecordingIndex = inputRecordingIndex;
+		state->recordingHandle = replayBuffer->fileHandle;
+
 #if RECORD_STATE
-	write(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+		lseek(state->recordingHandle, state->totalSize, SEEK_SET);
+		memcpy(replayBuffer->memoryBlock, state->totalELONMemoryBlock, state->totalSize);
 #endif
+	}
 }
 
 intern void EndInputRecording(EHLState* state){
@@ -856,11 +862,15 @@ intern void EndInputRecording(EHLState* state){
 }
 
 intern void BeginInputPlayBack(EHLState* state, U32 inputRecordingIndex){
-	state->inputPlayBackIndex = inputRecordingIndex;
-	state->playBackHandle = open(ELONInputRecordingDataFile, O_RDONLY);
+	EHLReplayBuffer* replayBuffer = &state->replayBuffers[inputRecordingIndex];
+	if(replayBuffer->memoryBlock){
+		state->inputPlayBackIndex = inputRecordingIndex;
+		state->playBackHandle = replayBuffer->fileHandle;
 #if RECORD_STATE
-	read(state->recordingHandle, state->totalELONMemoryBlock, state->totalSize);
+		lseek(state->playBackHandle, state->totalSize, SEEK_SET);
+		memcpy(state->totalELONMemoryBlock, replayBuffer->memoryBlock, state->totalSize);
 #endif
+	}
 }
 
 intern void EndInputPlayBack(EHLState* state){
@@ -882,6 +892,28 @@ intern void PlayBackInput(EHLState* state, Input* input){
 		read(state->playBackHandle, input, sizeof(*input));
 	}
 }
+
+intern void BeginAutonomousPlayback(EHLState* state, U32 autonPlayBackIndex){
+	EHLReplayBuffer* autonBuffer = &state->autonBuffers[autonPlayBackIndex];
+	if(replayBuffer->memoryBlock){
+		state->autonPlayBackIndex = autonPlayBackIndex;
+		state->autonHandle = autonBuffer->fileHandle;
+	}
+}
+
+intern void EndAutonomousPlayback(EHLState* state){
+	if(state->autonHandle){
+		close(state->autonHandle);
+	}
+	state->autonPlayBackIndex = 0;
+}
+
+intern void PlayBackAutonomous(EHLState* state, Input* input){
+	if(read(state->autonHandle, input, sizeof(*input)) < 1){
+		EndAutonomousPlayback(state);
+	}
+}
+
 
 intern void ProcessEHLInputProtocols(EHLState* state, Input* input){
 	for(U32 i = 0; i < NUM_GAMEPADS; i++){
@@ -944,6 +976,7 @@ void ELON::RobotMain(){
 	ELONMemory elonMemory;
 
 #if 1
+	//TODO: Check if this works with Just 3 Billion
 	void* baseAddress = rcast<void*>(U32((GiB(4) - 1) - ((ELON_TOTAL_STORAGE_SIZE / getpagesize()) + 1) * getpagesize()));
 #else
 	void* baseAddress = NULL;
@@ -1009,10 +1042,46 @@ void ELON::RobotMain(){
 	B32 testInit = False;
 	B32 disabledInit = False;
 
+	for(U32 i = 0; i < NUM_REPLAY_BUFFERS; i++){
+		EHLReplayBuffer* replayBuffer = &ehlState.replayBuffers[i];
+
+		GetInputFileLocation(&ehlState, true, i, sizeof(replayBuffer->filename),
+							 replayBuffer->filename);
+
+		replayBuffer->fileHandle = open(replayBuffer->filename, O_RDWR | O_CREAT | O_TRUNC,
+										S_IRWXU | S_IRWXG | S_IRWXO);
+
+		replayBuffer->memoryBlock = mmap(NULL, ehlState.totalSize, PROT_READ | PROT_WRITE,
+										 MAP_SHARED, replayBuffer->fileHandle, 0);
+
+		if(replayBuffer->memoryBlock == MAP_FAILED){
+			Cerr("Failed To Allocate Replay Buffer: %d With size of: %d bytes", i, ehlState.totalSize);
+		}
+	}
+
+	ehlState.autonBuffers[0]->filename = ELONAutonomousDataFileName_0;
+
+	U32 autonBufferSize = sizeof(Input) * 15/*s*/ * CORE_THREAD_HZ;
+
+	for(U32 i = 0; i < NUM_AUTON_BUFFERS; i++){
+		EHLReplayBuffer* autonBuffer = &ehlState.autonBuffers[i];
+
+		autonBuffer->fileHandle = open(autonBuffer->filename, O_RDONLY, S_IRWXU | S_IRWXG | S_IRWXO);
+
+		autonBuffer->memoryBlock = mmap(NULL, autonBufferSize, PROT_READ,
+										autonBuffer->fileHandle, 0);
+
+
+		if(autonBuffer->memoryBlock == MAP_FAILED){
+			Cerr("Failed To Read Autonomous Buffer: %d With size of: %d bytes", i, autonBufferSize);
+		}
+	}
+
 	F64 targetMSPerFrame = 1000.0 / CORE_THREAD_HZ;
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
 	Cout("Starting ELON Hardware Layer Core Loop");
+
 	for(;;){
 		//Reload ELONEngine
 		U32 newELONEngineWriteTime = GetLastWriteTime(ELONEngineBinary);
@@ -1032,6 +1101,9 @@ void ELON::RobotMain(){
 		//Executing user function based on robot state
 		if(IsAutonomous() && IsEnabled()){
 			if(!autonomousInit){
+				if(ehlState.autonPlayBackIndex){
+					EndAutonomousPlayback(&ehlState);
+				}
 				if(ehlState.lastTeleopRecordingIndex){
 					EndTeleopInputRecording(&ehlState);
 				}
@@ -1047,12 +1119,17 @@ void ELON::RobotMain(){
 				teleopInit = False;
 				testInit = False;
 				disabledInit = False;
+
+				BeginAutonomousPlayback(&ehlState, 1);
 			}
 			//Autonomous Iterative Dytor
 			engine.AutonomousCallback(&elonMemory, newInput);
 
 		}else if(IsOperatorControl() && IsEnabled()){
 			if(!autonomousInit){
+				if(ehlState.autonPlayBackIndex){
+					EndAutonomousPlayback(&ehlState);
+				}
 				if(ehlState.lastTeleopRecordingIndex){
 					EndTeleopInputRecording(&ehlState);
 				}
@@ -1086,6 +1163,9 @@ void ELON::RobotMain(){
 			}
 
 			if(!autonomousInit){
+				if(ehlState.autonPlayBackIndex){
+					EndAutonomousPlayback(&ehlState);
+				}
 				if(ehlState.lastTeleopRecordingIndex){
 					EndTeleopInputRecording(&ehlState);
 				}
@@ -1107,6 +1187,9 @@ void ELON::RobotMain(){
 
 		}else if(IsDisabled()){
 			if(!autonomousInit){
+				if(ehlState.autonPlayBackIndex){
+					EndAutonomousPlayback(&ehlState);
+				}
 				if(ehlState.lastTeleopRecordingIndex){
 					EndTeleopInputRecording(&ehlState);
 				}

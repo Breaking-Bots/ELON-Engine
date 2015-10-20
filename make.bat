@@ -1,6 +1,8 @@
 @echo off
 @setlocal
 
+pushd "Z:\\FRC\\Workspace\\ELON Engine Prototype"
+
 CALL CountLOC.bat
 
 :: Begin Timing
@@ -48,3 +50,6 @@ set /a totalsecs = %hours%*3600 + %mins%*60 + %secs%
 echo Action executed in %hours%:%mins%:%secs%.%ms% (%totalsecs%.%ms%s total)
 
 :endofmake
+
+
+popd

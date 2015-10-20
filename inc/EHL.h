@@ -1,8 +1,6 @@
 #ifndef ELON_H
 #define ELON_H
 
-#include "ELONEngine.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -315,13 +313,27 @@ void UpdateInput(DriverStation* ds, ELONMemory* memory);
  * ELON Hardware Layer		                                       *
  *******************************************************************/
 
+struct EHLReplayBuffer{
+	HANDLE fileHandle;
+	char filename[256];
+	void* memoryBlock;
+};
+
 struct EHLState{
 	U32 totalSize;
 	void* totalELONMemoryBlock;
+	EHLReplayBuffer replayBuffers[NUM_REPLAY_BUFFERS];
+	EHLReplayBuffer autonBuffers[NUM_AUTON_BUFFERS];
+
+	HANDLE autonHandle;
+	U32 autonPlayBackIndex;
+
 	HANDLE recordingHandle;
 	U32 inputRecordingIndex;
+
 	HANDLE playBackHandle;
 	U32 inputPlayBackIndex;
+
 	HANDLE lastTeleopRecordingHandle;
 	U32 lastTeleopRecordingIndex;
 };
