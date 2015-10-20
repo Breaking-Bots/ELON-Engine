@@ -5,9 +5,11 @@
  * Properties				                                       *
  *******************************************************************/
 
+#define CURRENT_AUTONOMOUS_INDEX 0
+#define NUM_AUTON_BUFFERS 4
+
 #define RECORD_STATE 0
 #define NUM_REPLAY_BUFFERS 4
-#define NUM_AUTON_BUFFERS 1
 
 #define DISABLE_FAST_THREAD 1
 #define DISABLE_CORE_THREAD 0
@@ -15,7 +17,7 @@
 #define CORE_THREAD_HZ 50
 #define FAST_THREAD_HZ 200
 
-#define NUM_GAMEPADS 1
+#define NUM_GAMEPADS 2
 
 #define CHASSIS_NUM_MOTORS 4
 #define CHASSIS_PORT_FL 0
@@ -39,7 +41,10 @@
 #define ELONInputRecordingDataFileName ("/home/lvuser/InputRecording")
 #define ELONTeleopRecordingDataFileName ("/home/lvuser/TeleopRecording")
 
-#define ELONAutonomousDataFileName_0 ("/home/lvuser/Autonomous.eid")
+#define ELONAutonomousDataFile_0 ("/home/lvuser/DoNothing.eid")
+#define ELONAutonomousDataFile_1 ("/home/lvuser/Push.eid")
+#define ELONAutonomousDataFile_2 ("/home/lvuser/Lift.eid")
+#define ELONAutonomousDataFile_3 ("/home/lvuser/LiftAndPush.eid")
 
 #define _A 0
 #define _B 1
@@ -91,7 +96,7 @@ extern "C"
 #define scast static_cast
 #define rcast reinterpret_cast
 
-typedef int32_t B32;
+typedef uint32_t B32;
 
 typedef int8_t I8;
 typedef int16_t I16;
@@ -245,7 +250,6 @@ struct Gamepad{
 	InputType inputType = InputType::QUADRATIC;
 };
 
-
 struct Input{
 	Gamepad gamepads[NUM_GAMEPADS];
 };
@@ -289,7 +293,7 @@ void SetInputType(Gamepad* gamepad, InputType inputType);
  * Memory					                                       *
  *******************************************************************/
 
- struct ELONMemory;
+struct ELONMemory;
 struct ELONState;
 struct ChassisState;
 struct ElevatorState;
@@ -300,6 +304,7 @@ struct ELONMemory{
 	void* permanentStorage; //REQUIRED to be cleared to zero at startup
 	U32 transientStorageSize;
 	void* transientStorage; //REQUIRED to be cleared to zero at startup
+	U32 autonomousIndex;
 	LoggingCallback* Cout;
 	LoggingCallback* Cerr;
 	SystemTimeCallback* SystemTime;

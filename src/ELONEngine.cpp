@@ -36,6 +36,52 @@ ELON_CALLBACK(TestCallback){
 	}
 
 	Gamepad* gamepad = GetGamepad(input, 0);
+	Gamepad* auxgamepad = GetGamepad(input, 1);
+
+	//Input processing
+	F32 lx = Analog(gamepad, _LX);
+	F32 ly = Analog(gamepad, _LY);
+	F32 rx = Analog(gamepad, _RX);
+	F32 ry = Analog(gamepad, _RY);
+	F32 lt = Analog(gamepad, _LT);
+	F32 rt = Analog(gamepad, _RT);
+	F32 lt2 = Analog(auxgamepad, _LT);
+	F32 rt2 = Analog(auxgamepad, _RT);
+	if(ButtonTapped(gamepad, _START)){
+		EnableChassis(memory, !IsChassisEnabled(memory));
+	}
+
+	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->elevatorState.elevatorMagnitude = memory->Coserp(DEF_SPEED, MAX_SPEED, rt2 - lt2);
+
+	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
+	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
+	//SetChassisMagnitude(memory, 0.10f);
+	//SetElevatorMagnitude(memory, 0.30f);
+
+	F32 dtheta = state->chassisState.gyroAngleDeg - state->chassisState.lastGyroAngleDeg;
+	if(dtheta > 0.1f || dtheta < -0.1f){
+		memory->Cout("Gyro: %4.1f degrees", dtheta);
+	}
+
+	ELONDrive(memory, ly, rx);
+	
+	Elevate(memory, (I32)(Button(auxgamepad, _RB) - Button(auxgamepad, _LB)));
+}
+
+ELON_CALLBACK(InitAutonomous){
+	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
+}
+
+ELON_CALLBACK(AutonomousCallback){
+	ELONState* state = scast<ELONState*>(memory->permanentStorage);
+	if(!memory->isInitialized){
+		state->chassisState.chassisMagnitude = DEF_SPEED;
+		state->elevatorState.elevatorMagnitude = DEF_SPEED;
+		memory->isInitialized = True;
+	}
+
+	Gamepad* gamepad = GetGamepad(input, 0);
 
 	//Input processing
 	F32 lx = Analog(gamepad, _LX);
@@ -54,21 +100,8 @@ ELON_CALLBACK(TestCallback){
 	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
 	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
 
-	F32 dtheta = state->chassisState.gyroAngleDeg - state->chassisState.lastGyroAngleDeg;
-	if(dtheta > 0.1f || dtheta < -0.1f){
-		memory->Cout("Gyro: %4.1f degrees", dtheta);
-	}
-
 	ELONDrive(memory, ly, rx);
-	Elevate(memory, Button(gamepad, _RB) - Button(gamepad, _LB));
-}
-
-ELON_CALLBACK(InitAutonomous){
-
-}
-
-ELON_CALLBACK(AutonomousCallback){
-	
+	Elevate(memory, (I32)(Button(gamepad, _RB) - Button(gamepad, _LB)));
 }
 
 ELON_CALLBACK(InitDisabled){

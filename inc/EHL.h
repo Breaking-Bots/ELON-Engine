@@ -325,7 +325,10 @@ struct EHLState{
 	EHLReplayBuffer replayBuffers[NUM_REPLAY_BUFFERS];
 	EHLReplayBuffer autonBuffers[NUM_AUTON_BUFFERS];
 
-	HANDLE autonHandle;
+	HANDLE autonRecordingHandle;
+	U32 autonRecordingIndex;
+
+	HANDLE autonPlayBackHandle;
 	U32 autonPlayBackIndex;
 
 	HANDLE recordingHandle;
