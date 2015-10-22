@@ -1,7 +1,7 @@
 @echo off
 @setlocal
 
-pushd "Z:\\FRC\\Repositories\\ELON-Engine"
+pushd "Z:\\FRC\\Workspace\\ELON Engine Prototype"
 
 CALL CountLOC.bat
 

@@ -15,65 +15,7 @@
 extern "C" {
 #endif
 
-ELON_CALLBACK(InitTeleop){
-
-}
-
-ELON_CALLBACK(TeleopCallback){
-
-}
-
-ELON_CALLBACK(InitTest){
-
-}
-
-ELON_CALLBACK(TestCallback){
-	ELONState* state = scast<ELONState*>(memory->permanentStorage);
-	if(!memory->isInitialized){
-		state->chassisState.chassisMagnitude = DEF_SPEED;
-		state->elevatorState.elevatorMagnitude = DEF_SPEED;
-		memory->isInitialized = True;
-	}
-
-	Gamepad* gamepad = GetGamepad(input, 0);
-	Gamepad* auxgamepad = GetGamepad(input, 1);
-
-	//Input processing
-	F32 lx = Analog(gamepad, _LX);
-	F32 ly = Analog(gamepad, _LY);
-	F32 rx = Analog(gamepad, _RX);
-	F32 ry = Analog(gamepad, _RY);
-	F32 lt = Analog(gamepad, _LT);
-	F32 rt = Analog(gamepad, _RT);
-	F32 lt2 = Analog(auxgamepad, _LT);
-	F32 rt2 = Analog(auxgamepad, _RT);
-	if(ButtonTapped(gamepad, _START)){
-		EnableChassis(memory, !IsChassisEnabled(memory));
-	}
-
-	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-	state->elevatorState.elevatorMagnitude = memory->Coserp(DEF_SPEED, MAX_SPEED, rt2 - lt2);
-
-	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
-	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
-	//SetChassisMagnitude(memory, 0.10f);
-	//SetElevatorMagnitude(memory, 0.30f);
-
-	F32 dtheta = state->chassisState.gyroAngleDeg - state->chassisState.lastGyroAngleDeg;
-	if(dtheta > 0.1f || dtheta < -0.1f){
-		memory->Cout("Gyro: %4.1f degrees", dtheta);
-	}
-
-	ELONDrive(memory, ly, rx);
-	
-	Elevate(memory, (I32)(Button(auxgamepad, _RB) - Button(auxgamepad, _LB)));
-}
-
-ELON_CALLBACK(InitAutonomous){
-	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
-}
-
-ELON_CALLBACK(AutonomousCallback){
+ELON_CALLBACK(SingleControllerInputControlledCallback){
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
 	if(!memory->isInitialized){
 		state->chassisState.chassisMagnitude = DEF_SPEED;
@@ -102,6 +44,77 @@ ELON_CALLBACK(AutonomousCallback){
 
 	ELONDrive(memory, ly, rx);
 	Elevate(memory, (I32)(Button(gamepad, _RB) - Button(gamepad, _LB)));
+}
+
+ELON_CALLBACK(DoubleControllerInputControlledCallback){
+	ELONState* state = scast<ELONState*>(memory->permanentStorage);
+	if(!memory->isInitialized){
+		state->chassisState.chassisMagnitude = DEF_SPEED;
+		state->elevatorState.elevatorMagnitude = DEF_SPEED;
+		memory->isInitialized = True;
+	}
+
+	Gamepad* driveGamepad = GetGamepad(input, 0);
+	Gamepad* liftGamepad = GetGamepad(input, 1);
+
+	//Input processing
+	F32 lx = Analog(driveGamepad, _LX);
+	F32 ly = Analog(driveGamepad, _LY);
+	F32 rx = Analog(driveGamepad, _RX);
+	F32 ry = Analog(driveGamepad, _RY);
+	F32 lt = Analog(driveGamepad, _LT);
+	F32 rt = Analog(driveGamepad, _RT);
+	F32 lt2 = Analog(liftGamepad, _LT);
+	F32 rt2 = Analog(liftGamepad, _RT);
+	if(ButtonTapped(driveGamepad, _START)){
+		EnableChassis(memory, !IsChassisEnabled(memory));
+	}
+
+	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->elevatorState.elevatorMagnitude = memory->Coserp(DEF_SPEED, MAX_SPEED, rt2 - lt2);
+
+	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
+	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
+
+	ELONDrive(memory, ly, rx);
+	
+	Elevate(memory, (I32)(Button(liftGamepad, _RB) - Button(liftGamepad, _LB)));
+}
+
+ELON_CALLBACK(InitTeleop){
+
+}
+
+ELON_CALLBACK(TeleopCallback){
+	#if NUM_GAMEPADS == 1
+		SingleControllerInputControlledCallback(memory, input);
+	#elif NUM_GAMEPADS == 2
+		DoubleControllerInputControlledCallback(memory, input);
+	#endif
+}
+
+ELON_CALLBACK(InitTest){
+
+}
+
+ELON_CALLBACK(TestCallback){
+	#if NUM_GAMEPADS == 1
+		SingleControllerInputControlledCallback(memory, input);
+	#elif NUM_GAMEPADS == 2
+		DoubleControllerInputControlledCallback(memory, input);
+	#endif
+}
+
+ELON_CALLBACK(InitAutonomous){
+	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
+}
+
+ELON_CALLBACK(AutonomousCallback){
+	#if NUM_GAMEPADS == 1
+		SingleControllerInputControlledCallback(memory, input);
+	#elif NUM_GAMEPADS == 2
+		DoubleControllerInputControlledCallback(memory, input);
+	#endif
 }
 
 ELON_CALLBACK(InitDisabled){

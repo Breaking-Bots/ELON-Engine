@@ -13,8 +13,8 @@
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cstdarg>
 #include "WPILib.h"
 #include "ELONEngine.h"
 #include "EHL.h"
