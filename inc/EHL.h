@@ -317,6 +317,7 @@ struct EHLReplayBuffer{
 	HANDLE fileHandle;
 	char filename[256];
 	void* memoryBlock;
+	U32 offset = 0;
 };
 
 struct EHLState{
@@ -327,6 +328,8 @@ struct EHLState{
 
 	HANDLE autonRecordingHandle;
 	U32 autonRecordingIndex;
+	B32 recordingAuton = False;
+	U32 autonCyclesCounter = 0;
 
 	HANDLE autonPlayBackHandle;
 	U32 autonPlayBackIndex;

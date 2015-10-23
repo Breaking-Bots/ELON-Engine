@@ -830,6 +830,7 @@ intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIn
 		state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
 #if RECORD_STATE
 		memcpy(replayBuffer->memoryBlock, state->totalELONMemoryBlock, state->totalSize);
+		Cout("Started teleop recording");
 #endif
 	}else{
 		Cout("Unable to start recording teleop input");
@@ -903,7 +904,9 @@ intern void PlayBackInput(EHLState* state, Input* input){
 		EndInputPlayBack(state);
 		BeginInputPlayBack(state, playBackIndex);
 		read(state->playBackHandle, input, sizeof(*input));
-		Cout("%d", state->playBackHandle);
+		if(err != 32){
+			Cout("%d", state->playBackHandle);
+		}
 	}
 }
 
@@ -912,45 +915,55 @@ intern void BeginAutonomousRecording(EHLState* state, U32 autonRecordingIndex){
 	if(autonBuffer->memoryBlock){	
 		state->autonRecordingIndex = autonRecordingIndex;
 		state->autonRecordingHandle = autonBuffer->fileHandle;
+		autonBuffer->offset = 0;
 	}else{
 		Cout("Unable to start recording autonomous");
 	}
 }
 
 intern void EndAutonomousRecording(EHLState* state){
+	EHLReplayBuffer* autonBuffer = &state->autonBuffers[state->autonRecordingIndex];
+	autonBuffer->offset = 0;
 	if(state->autonRecordingHandle){
-		close(state->autonRecordingHandle);
+		write(state->autonRecordingHandle, autonBuffer->memoryBlock, (sizeof(Input) * 15/*s*/ * CORE_THREAD_HZ));
+		fsync(state->autonRecordingHandle);
+		lseek(state->autonRecordingHandle, 0, SEEK_SET);
 	}
 	state->autonRecordingIndex = 0;
 }
 
 intern void RecordAutonomous(EHLState* state, Input* input){
-	write(state->autonRecordingHandle, input, sizeof(*input));
+	EHLReplayBuffer* autonBuffer = &(state->autonBuffers[state->autonRecordingIndex]);
+	memcpy((U8*)(autonBuffer->memoryBlock) + autonBuffer->offset, input, sizeof(*input));
+	autonBuffer->offset += sizeof(*input);
 }
 
 intern void BeginAutonomousPlayback(EHLState* state, U32 autonPlayBackIndex){
 	EHLReplayBuffer* autonBuffer = &state->autonBuffers[autonPlayBackIndex];
+	autonBuffer->offset = 0;
 	if(autonBuffer->memoryBlock){
 		state->autonPlayBackIndex = autonPlayBackIndex;
 		state->autonPlayBackHandle = autonBuffer->fileHandle;
+		Cout("Started autonomous playback");
 	}else{
-		Cout("Unable to start autonomous playback");
+		Cerr("Unable to start autonomous playback");
 	}
 }
 
 intern void EndAutonomousPlayback(EHLState* state){
-	if(state->autonPlayBackHandle){
-		close(state->autonPlayBackHandle);
-	}
+	EHLReplayBuffer* autonBuffer = &state->autonBuffers[state->autonPlayBackIndex];
+	autonBuffer->offset = 0;
 	state->autonPlayBackIndex = 0;
 }
 
 intern void PlayBackAutonomous(EHLState* state, Input* input){
-	if(read(state->autonPlayBackHandle, input, sizeof(*input)) < 1){
+	EHLReplayBuffer* autonBuffer = &(state->autonBuffers[state->autonRecordingIndex]);
+	memcpy(input, (U8*)(autonBuffer->memoryBlock) + autonBuffer->offset, sizeof(*input));
+	autonBuffer->offset += sizeof(*input);
+	if(autonBuffer->offset >= (sizeof(*input) * 15/*s*/ * CORE_THREAD_HZ)){
 		EndAutonomousPlayback(state);
 	}
 }
-
 
 intern void ProcessEHLInputProtocols(EHLState* state, Input* input){
 	for(U32 i = 0; i < NUM_GAMEPADS; i++){
@@ -968,6 +981,19 @@ intern void ProcessEHLInputProtocols(EHLState* state, Input* input){
 			EndInputRecording(state);
 			EndInputPlayBack(state);
 			Cout("Stopped Recording and PlayBack of input");
+		}
+
+		if(input->gamepads[i].b.endedDown && input->gamepads[i].b.halfTransitionCount){
+			EndAutonomousRecording(state);
+			BeginAutonomousRecording(state, state->autonRecordingIndex);
+			Cout("Began recording autonomous at index: %d", state->autonRecordingIndex);
+			state->recordingAuton = True;
+			state->autonCyclesCounter = 0;
+		}else if(input->gamepads[i].y.endedDown && input->gamepads[i].y.halfTransitionCount){
+			Cout("Stopped recording autonomous at index: %d", state->autonRecordingIndex);
+			EndAutonomousRecording(state);
+			state->recordingAuton = False;
+			state->autonCyclesCounter = 0;
 		}
 	}
 }
@@ -1089,7 +1115,7 @@ void ELON::RobotMain(){
 		//								S_IRWXU | S_IRWXG | S_IRWXO);
 
 		replayBuffer->memoryBlock = mmap(NULL, ehlState.totalSize, PROT_READ | PROT_WRITE,
-										 MAP_PRIVATE, replayBuffer->fileHandle, 0);
+										 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
 		I32 err = errno;
 
@@ -1112,8 +1138,21 @@ void ELON::RobotMain(){
 
 		autonBuffer->fileHandle = open(autonBuffer->filename, O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 
-		autonBuffer->memoryBlock = mmap(NULL, autonBufferSize, PROT_READ, MAP_SHARED,
+		autonBuffer->memoryBlock = mmap(NULL, autonBufferSize, PROT_READ | PROT_WRITE, MAP_PRIVATE,
 										autonBuffer->fileHandle, 0);
+
+		autonBuffer->offset = 0;
+
+		if(autonBuffer->memoryBlock != MAP_FAILED){
+			U32 bytesRead = read(autonBuffer->fileHandle, autonBuffer->memoryBlock, autonBufferSize);
+			if(bytesRead != autonBufferSize){
+				Cout("Byte Requirement not met for buffer: %d", i);
+				munmap(autonBuffer->memoryBlock, autonBufferSize);
+				autonBuffer->memoryBlock = NULL;
+			}
+		}else{
+			Cerr("Autonomous Allocation failed for buffer: %d", i);
+		}
 
 		I32 err = errno;
 
@@ -1142,11 +1181,9 @@ void ELON::RobotMain(){
 
 		//Update Input
 		UpdateInput(ds, newInput, oldInput);
+		ehlState.autonRecordingIndex = elonMemory.autonomousIndex;
+		ehlState.autonPlayBackIndex = elonMemory.autonomousIndex;
 		ProcessEHLInputProtocols(&ehlState, newInput);
-
-		//Temp
-		U32 cyclesCounter = 0;
-		B32 recordingAuton = False;
 
 		//Executing user function based on robot state
 		if(IsAutonomous() && IsEnabled()){
@@ -1173,7 +1210,7 @@ void ELON::RobotMain(){
 				BeginAutonomousPlayback(&ehlState, elonMemory.autonomousIndex);
 			}
 
-
+			PlayBackAutonomous(&ehlState, newInput);
 
 			//Autonomous Iterative Dytor
 			engine.AutonomousCallback(&elonMemory, newInput);
@@ -1207,25 +1244,16 @@ void ELON::RobotMain(){
 
 			//Autonomous Recording
 			//Temp
-			if(newInput->gamepads[0].b.endedDown && newInput->gamepads[0].b.halfTransitionCount){
-				EndAutonomousRecording(&ehlState);
-				BeginAutonomousRecording(&ehlState, CURRENT_AUTONOMOUS_INDEX);
-				Cout("Began recording autonomous at index: %d", ehlState.autonRecordingIndex);
-				recordingAuton = True;
-				cyclesCounter = 0;
-			}else if(newInput->gamepads[0].y.endedDown && newInput->gamepads[0].y.halfTransitionCount){
-				EndAutonomousRecording(&ehlState);
-				recordingAuton = False;
-				cyclesCounter = 0;
-			}
 
-			if(recordingAuton){
+
+			if(ehlState.recordingAuton){
 				RecordAutonomous(&ehlState, newInput);
-				cyclesCounter++;
-				if(cyclesCounter >= autonCycles){
+				ehlState.autonCyclesCounter++;
+				if(ehlState.autonCyclesCounter >= autonCycles){
 					EndAutonomousRecording(&ehlState);
-					recordingAuton = False;
-					cyclesCounter = 0;
+					ehlState.recordingAuton = False;
+					Cout("%d ||||| %d", ehlState.autonCyclesCounter, sizeof(Input));
+					ehlState.autonCyclesCounter = 0;
 				}
 			}
 

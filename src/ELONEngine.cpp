@@ -71,7 +71,7 @@ ELON_CALLBACK(DoubleControllerInputControlledCallback){
 	}
 
 	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-	state->elevatorState.elevatorMagnitude = memory->Coserp(DEF_SPEED, MAX_SPEED, rt2 - lt2);
+	state->elevatorState.elevatorMagnitude = memory->Coserp(DEF_SPEED, MAX_SPEED, memory->NormalizeAlpha(rt2 - lt2));
 
 	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
 	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
@@ -82,7 +82,7 @@ ELON_CALLBACK(DoubleControllerInputControlledCallback){
 }
 
 ELON_CALLBACK(InitTeleop){
-
+	memory->Cout("WOW");
 }
 
 ELON_CALLBACK(TeleopCallback){
@@ -94,10 +94,11 @@ ELON_CALLBACK(TeleopCallback){
 }
 
 ELON_CALLBACK(InitTest){
-
+	
 }
 
 ELON_CALLBACK(TestCallback){
+	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
 	#if NUM_GAMEPADS == 1
 		SingleControllerInputControlledCallback(memory, input);
 	#elif NUM_GAMEPADS == 2
@@ -106,10 +107,11 @@ ELON_CALLBACK(TestCallback){
 }
 
 ELON_CALLBACK(InitAutonomous){
-	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
+
 }
 
 ELON_CALLBACK(AutonomousCallback){
+	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
 	#if NUM_GAMEPADS == 1
 		SingleControllerInputControlledCallback(memory, input);
 	#elif NUM_GAMEPADS == 2
