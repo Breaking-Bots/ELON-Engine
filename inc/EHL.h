@@ -332,6 +332,7 @@ struct EHLState{
 	U32 autonCyclesCounter = 0;
 
 	HANDLE autonPlayBackHandle;
+	B32 playingAuton = False;
 	U32 autonPlayBackIndex;
 
 	HANDLE recordingHandle;
