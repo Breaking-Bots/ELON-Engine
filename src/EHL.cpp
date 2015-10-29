@@ -419,7 +419,7 @@ void InitializeChassis(){
 	gyro = new Gyro(GYRO_PORT);
 	gyro->SetSensitivity(GYRO_SENSITIVITY);
 	leftEncoder = new Encoder(LEFT_ENCODER_PORT_A, LEFT_ENCODER_PORT_B, true, Encoder::EncodingType::k4X);
-	rightEncoder = new Encoder(RIGHT_ENCODER_PORT_A, RIGHT_ENCODER_PORT_B, true, Encoder::EncodingType::k4X);
+	rightEncoder = new Encoder(RIGHT_ENCODER_PORT_A, RIGHT_ENCODER_PORT_B, false, Encoder::EncodingType::k4X);
 	Cout("Chassis Initialized");
 }
 
@@ -453,6 +453,8 @@ void UpdateChassis(ELONMemory* memory){
 }
 
 void TerminateChassis(){
+	delete leftEncoder;
+	delete rightEncoder;
 	delete gyro;
 	for(U32 i = 0; i < CHASSIS_NUM_MOTORS; i++){
 		delete motors[i];

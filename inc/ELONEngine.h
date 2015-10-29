@@ -17,7 +17,7 @@
 #define CORE_THREAD_HZ 50
 #define FAST_THREAD_HZ 200
 
-#define NUM_GAMEPADS 1
+#define NUM_GAMEPADS 2
 
 #define CHASSIS_NUM_MOTORS 4
 #define CHASSIS_PORT_FL 0
@@ -40,7 +40,7 @@
 #define LIFT_ENCODER_PORT_B 5
 
 #define MIN_SPEED (0.35f)
-#define DEF_SPEED (0.65f)
+#define DEF_SPEED (0.40f)
 #define MAX_SPEED (1.00f)
 
 #define GYRO_SENSITIVITY (0.006f)

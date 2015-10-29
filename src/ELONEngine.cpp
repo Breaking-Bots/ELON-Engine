@@ -70,7 +70,7 @@ ELON_CALLBACK(DoubleControllerInputControlledCallback){
 		EnableChassis(memory, !IsChassisEnabled(memory));
 	}
 
-	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, (rt - lt));
 	state->elevatorState.elevatorMagnitude = memory->Coserp(DEF_SPEED, MAX_SPEED, memory->NormalizeAlpha(rt2 - lt2));
 
 	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
