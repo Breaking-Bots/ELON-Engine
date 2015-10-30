@@ -172,6 +172,66 @@ ELONEngine LoadELONEngine(std::string filename);
 void UnloadELONEngine(ELONEngine* engine);
 
 /*******************************************************************
+ * Hardware		                                                   *
+ *******************************************************************/
+
+//TODO: Do all hardware stuff in this layer here
+
+
+
+struct EHLHardwareSystem{
+
+};
+
+/*******************************************************************
+ * Encoder		                                                   *
+ *******************************************************************/
+
+enum EHLEncodingType{
+	ET_1X = 1,
+	ET_2X = 2,
+	ET_4X = 4
+};
+
+struct EHLEncoder{
+	void* HALEncoder;
+	Counter* counter;
+	DigitalInput* srcA;
+	DigitalInput* srcB;
+	EHLEncodingType encodingType;
+	I32 index;
+	B32 initialized;
+};
+
+void InitializeEHLEncoder(EHLEncoder* encoder, U32 channelA, U32 channelB, 
+						  B32 reverseDirection, EHLEncodingType encodingType = ET_4X);
+
+void TerminateEHLEncoder(EHLEncoder* encoder);
+
+void EHLEncoderResetValue(EHLEncoder* encoder);
+
+I32 EHLEncoderRawValue(EHLEncoder* encoder);
+
+I32 EHLEncoderValue(EHLEncoder* encoder);
+
+F32 EHLEncoderPeriod(EHLEncoder* encoder);
+
+void EHLEncoderSetMaxPeriod(EHLEncoder* encoder, F32 maxPeriod);
+
+B32 EHLEncoderStopped(EHLEncoder* encoder);
+
+//TODO: Test to see what exactly direction is
+B32 EHLEncoderDirection(EHLEncoder* encoder);
+
+F32 EHLEncoderDistance(EHLEncoder* encoder, F32 distancePerPulse);
+
+F32 EHLEncoderRate(EHLEncoder* encoder, F32 distancePerPulse);
+
+void EHLEncoderSetMinRate(EHLEncoder* encoder, F32 distancePerPulse, F32 minRate);
+
+void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, I8 samplesToAverage);
+
+/*******************************************************************
  * Elevator		                                                   *
  *******************************************************************/
 

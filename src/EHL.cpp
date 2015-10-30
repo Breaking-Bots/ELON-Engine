@@ -363,16 +363,160 @@ void UnloadELONEngine(ELONEngine* engine){
 #endif
 
 /*******************************************************************
+ * Hardware		                                                   *
+ *******************************************************************/
+
+//TODO: Do all hardware stuff in this layer here
+
+/*******************************************************************
+ * Encoder		                                                   *
+ *******************************************************************/
+
+void InitializeEHLEncoder(EHLEncoder* encoder, U32 channelA, U32 channelB, 
+						  B32 reverseDirection, EHLEncodingType encodingType){
+	if(encoder){
+		encoder->srcA = new DigitalInput(channelA);
+		encoder->srcB = new DigitalInput(channelB);
+
+		encoder->encodingType = encodingType;
+
+		switch(encodingType){
+			case 4:{
+				I32 status = 0;
+				encoder->HALEncoder = initializeEncoder(encoder->srcA->GetModuleForRouting(),
+														encoder->srcA->GetChannelForRouting(),
+														encoder->srcA->GetAnalogTriggerForRouting(),
+														encoder->srcB->GetModuleForRouting(),
+														encoder->srcB->GetChannelForRouting(),
+														encoder->srcB->GetAnalogTriggerForRouting(),
+														reverseDirection, &encoder->index, 
+														&status);
+				encoder->counter = NULL;
+				EHLEncoderSetMaxPeriod(encoder, 0.5f);
+			} break;
+			case 1:
+			case 2:{
+				//TODO: if necessary, complete
+			} break;
+			default:{
+				Cerr("Bad Encoding type on encoder; Channels: %d, %d", channelA, channelB);
+			}
+		}
+
+
+	}else{
+		Cerr("NULL Encoder; Channels: %d, %d", channelA, channelB);
+	}
+}
+
+void TerminateEHLEncoder(EHLEncoder* encoder){
+	if(encoder && !encoder->counter){
+		I32 status = 0;
+		freeEncoder(encoder->HALEncoder, &status);
+	}
+}
+
+void EHLEncoderResetValue(EHLEncoder* encoder){
+	if(encoder){
+		I32 status = 0;
+		resetEncoder(encoder->HALEncoder, &status);
+	}else{
+		Cerr("NULL Encoder");
+	}
+}
+
+I32 EHLEncoderRawValue(EHLEncoder* encoder){
+	if(encoder){
+		I32 status = 0;
+		return getEncoder(encoder->HALEncoder, &status);
+	}else{
+		Cerr("NULL Encoder");
+		return 0;
+	}	
+}
+
+I32 EHLEncoderValue(EHLEncoder* encoder){
+	return (I32)(EHLEncoderRawValue(encoder) / encoder->encodingType);
+}
+
+F32 EHLEncoderPeriod(EHLEncoder* encoder){
+	if(encoder){
+		I32 status = 0;
+		return (F32) getEncoderPeriod(encoder->HALEncoder, &status);
+	}else{
+		Cerr("NULL Encoder");
+		return 0.0f;
+	}
+}
+
+void EHLEncoderSetMaxPeriod(EHLEncoder* encoder, F32 maxPeriod){
+	if(encoder){
+		I32 status = 0;
+		setEncoderMaxPeriod(encoder->HALEncoder, maxPeriod, &status);
+	}else{
+		Cerr("NULL Encoder");
+	}
+}
+
+B32 EHLEncoderStopped(EHLEncoder* encoder){
+	if(encoder){
+		I32 status = 0;
+		return getEncoderStopped(encoder->HALEncoder, &status);
+	}else{
+		Cerr("NULL Encoder");
+		return True;
+	}
+}
+
+//TODO: Test to see what exactly direction is
+B32 EHLEncoderDirection(EHLEncoder* encoder){
+	if(encoder){
+		I32 status = 0;
+		return getEncoderDirection(encoder->HALEncoder, &status);
+	}else{
+		Cerr("NULL Encoder");
+		return True;
+	}
+}
+
+F32 EHLEncoderDistance(EHLEncoder* encoder, F32 distancePerPulse){
+	return EHLEncoderValue(encoder) * distancePerPulse;
+}
+
+F32 EHLEncoderRate(EHLEncoder* encoder, F32 distancePerPulse){
+	return (distancePerPulse / EHLEncoderPeriod(encoder));
+}
+
+void EHLEncoderSetMinRate(EHLEncoder* encoder, F32 distancePerPulse, F32 minRate){
+	EHLEncoderSetMaxPeriod(encoder, distancePerPulse / minRate);
+}
+
+void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, I8 samplesToAverage){
+	if(encoder){
+		if(samplesToAverage < 1){
+			samplesToAverage = 1;
+		}
+
+		I32 status = 0;
+		setEncoderSamplesToAverage(encoder->HALEncoder,samplesToAverage, &status);
+	}else{
+		Cerr("NULL Encoder");
+	}
+}
+
+/*******************************************************************
  * Elevator		                                                   *
  *******************************************************************/
 #if 1
 Victor* elevatorMotor;
+Encoder* liftEncoder;
 
 MUTEX_ID elevatorMotorLock;
 
 void InitializeElevator(){
 	elevatorMotorLock = initializeMutexNormal();
 	elevatorMotor = new Victor(ELEVATOR_PORT);
+	liftEncoder = new Encoder(LIFT_ENCODER_PORT_A, LIFT_ENCODER_PORT_B, true, Encoder::EncodingType::k4X);
 	Cout("Elevator Initialized");
 }
 
@@ -383,6 +527,7 @@ void UpdateElevator(ELONMemory* memory){
 		state->invertedMotor = 1;
 		state->elevatorMagnitude = DEF_SPEED;
 		state->isInitialized = True;
+		liftEncoder->Reset();
 	}
 
 	CRITICAL_REGION(elevatorMotorLock);
@@ -391,6 +536,7 @@ void UpdateElevator(ELONMemory* memory){
 }
 
 void TerminateElevator(){
+	delete liftEncoder;
 	delete elevatorMotor;
 	deleteMutex(elevatorMotorLock);
 }
