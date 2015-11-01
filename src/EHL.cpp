@@ -1681,6 +1681,7 @@ I32 main() {
 
 	ELON* elon = new ELON();
 	RobotBase::robotSetup(elon);
-	Cout("Does this run?");
+	//Cout("Does this run?");
 	return 0;
 }
+
