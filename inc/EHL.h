@@ -177,11 +177,24 @@ void UnloadELONEngine(ELONEngine* engine);
 
 //TODO: Do all hardware stuff in this layer here
 
-
+#define NUM_DIGITAL_CHANNELS 26
+#define NUM_ANALOG_INPUTS 8
+#define NUM_ANALOG_OUTPUTS 2
+#define NUM_SOLENOID_CHANNELS 8
+#define NUM_SOLENOID_MODULES 2
+#define NUM_PWM_CHANNELS 20
+#define NUM_RELAY_CHANNELS 8
+#define NUM_PDP_CHANNELS 16
+#define NUM_CHASSIS_SLOTS 8
 
 struct EHLHardwareSystem{
-
+	void* dPorts[NUM_DIGITAL_CHANNELS];
+	void* rPorts[NUM_RELAY_CHANNELS];
+	void* pwmPorts[NUM_PWM_CHANNELS];
+	B32 initialized;
 };
+
+void InitializeEHLHardwareSystem(EHLHardwareSystem* hardwareSystem);
 
 /*******************************************************************
  * Encoder		                                                   *
@@ -230,6 +243,45 @@ F32 EHLEncoderRate(EHLEncoder* encoder, F32 distancePerPulse);
 void EHLEncoderSetMinRate(EHLEncoder* encoder, F32 distancePerPulse, F32 minRate);
 
 void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, I8 samplesToAverage);
+
+/*******************************************************************
+ * Motor Controller                                                *
+ *******************************************************************/
+
+#define DEFAULT_PWM_PERIOD 5.05f
+#define DEFAULT_PWM_CENTER 1.50f
+#define DEFAULT_PWM_STEPS_DOWN 1000
+
+enum EHLPeriodMultiplier{
+	PM_1X = 1,
+	PM_2X = 2,
+	PM_4X = 4
+};
+
+enum EHLMotorType{
+	MT_TALON,
+	MT_VICTOR
+};
+
+struct EHLMotor{
+	EHLMotorType motorType;
+	U32 channel;
+	I32 maxPwm;
+	I32 deadbandMaxPwm;
+	I32 centerPwm;
+	I32 deadbandMinPwm;
+	I32 minPwm;
+	B32 initialized;
+};
+
+void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem,
+						U32 channel, EHLMotorType motorType);
+
+void TerminateEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem);
+
+void EHLMotorSet(EHLMotor* motor, EHLHardwareSystem* hardwareSystem, F32 speed);
+
+F32 EHLMotorGetValue(EHLMotor* motor, EHLHardwareSystem* hardwareSystem);
 
 /*******************************************************************
  * Elevator		                                                   *

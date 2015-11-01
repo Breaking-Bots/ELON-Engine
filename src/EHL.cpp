@@ -368,13 +368,32 @@ void UnloadELONEngine(ELONEngine* engine){
 
 //TODO: Do all hardware stuff in this layer here
 
+ void InitializeEHLHardwareSystem(EHLHardwareSystem* hardwareSystem){
+ 	if(hardwareSystem && hardwareSystem->initialized){
+ 		for(U32 i = 0; i < NUM_DIGITAL_CHANNELS; i++){
+ 			I32 status = 0;
+ 			hardwareSystem->dPorts[i] = initializeDigitalPort(getPort(i), &status);
+ 		}
+
+ 		for(U32 i = 0; i < NUM_RELAY_CHANNELS; i++){
+ 			I32 status = 0;
+ 			hardwareSystem->rPorts[i] = initializeDigitalPort(getPort(i), &status);
+ 		}
+
+ 		for(U32 i = 0; i < NUM_PWM_CHANNELS; i++){
+ 			I32 status = 0;
+ 			hardwareSystem->pwmPorts[i] = initializeDigitalPort(getPort(i), &status);
+ 		}
+ 	}
+ }
+
 /*******************************************************************
  * Encoder		                                                   *
  *******************************************************************/
 
 void InitializeEHLEncoder(EHLEncoder* encoder, U32 channelA, U32 channelB, 
 						  B32 reverseDirection, EHLEncodingType encodingType){
-	if(encoder){
+	if(encoder && !encoder->initialized){
 		encoder->srcA = new DigitalInput(channelA);
 		encoder->srcB = new DigitalInput(channelB);
 
@@ -403,21 +422,22 @@ void InitializeEHLEncoder(EHLEncoder* encoder, U32 channelA, U32 channelB,
 			}
 		}
 
-
+		encoder->initialized = True;
 	}else{
 		Cerr("NULL Encoder; Channels: %d, %d", channelA, channelB);
 	}
 }
 
 void TerminateEHLEncoder(EHLEncoder* encoder){
-	if(encoder && !encoder->counter){
+	if(encoder && !encoder->counter && encoder->initialized){
 		I32 status = 0;
 		freeEncoder(encoder->HALEncoder, &status);
+		encoder->initialized = False;
 	}
 }
 
 void EHLEncoderResetValue(EHLEncoder* encoder){
-	if(encoder){
+	if(encoder && encoder->initialized){
 		I32 status = 0;
 		resetEncoder(encoder->HALEncoder, &status);
 	}else{
@@ -426,7 +446,7 @@ void EHLEncoderResetValue(EHLEncoder* encoder){
 }
 
 I32 EHLEncoderRawValue(EHLEncoder* encoder){
-	if(encoder){
+	if(encoder && encoder->initialized){
 		I32 status = 0;
 		return getEncoder(encoder->HALEncoder, &status);
 	}else{
@@ -440,7 +460,7 @@ I32 EHLEncoderValue(EHLEncoder* encoder){
 }
 
 F32 EHLEncoderPeriod(EHLEncoder* encoder){
-	if(encoder){
+	if(encoder && encoder->initialized){
 		I32 status = 0;
 		return (F32) getEncoderPeriod(encoder->HALEncoder, &status);
 	}else{
@@ -450,7 +470,7 @@ F32 EHLEncoderPeriod(EHLEncoder* encoder){
 }
 
 void EHLEncoderSetMaxPeriod(EHLEncoder* encoder, F32 maxPeriod){
-	if(encoder){
+	if(encoder && encoder->initialized){
 		I32 status = 0;
 		setEncoderMaxPeriod(encoder->HALEncoder, maxPeriod, &status);
 	}else{
@@ -459,7 +479,7 @@ void EHLEncoderSetMaxPeriod(EHLEncoder* encoder, F32 maxPeriod){
 }
 
 B32 EHLEncoderStopped(EHLEncoder* encoder){
-	if(encoder){
+	if(encoder && encoder->initialized){
 		I32 status = 0;
 		return getEncoderStopped(encoder->HALEncoder, &status);
 	}else{
@@ -470,7 +490,7 @@ B32 EHLEncoderStopped(EHLEncoder* encoder){
 
 //TODO: Test to see what exactly direction is
 B32 EHLEncoderDirection(EHLEncoder* encoder){
-	if(encoder){
+	if(encoder && encoder->initialized){
 		I32 status = 0;
 		return getEncoderDirection(encoder->HALEncoder, &status);
 	}else{
@@ -492,7 +512,7 @@ void EHLEncoderSetMinRate(EHLEncoder* encoder, F32 distancePerPulse, F32 minRate
 }
 
 void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, I8 samplesToAverage){
-	if(encoder){
+	if(encoder && encoder->initialized){
 		if(samplesToAverage < 1){
 			samplesToAverage = 1;
 		}
@@ -501,6 +521,112 @@ void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, I8 samplesToAverage){
 		setEncoderSamplesToAverage(encoder->HALEncoder,samplesToAverage, &status);
 	}else{
 		Cerr("NULL Encoder");
+	}
+}
+
+/*******************************************************************
+ * Motor Controller                                                *
+ *******************************************************************/
+
+void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem, 
+						U32 channel, EHLMotorType motorType){
+	if(motor && hardwareSystem && !motor->initialized && hardwareSystem->initialized){
+		motor->channel = channel;
+		motor->motorType = motorType;
+		I32 status = 0;		
+		allocatePWMChannel(hardwareSystem->pwmPorts[channel], &status);
+		setPWM(hardwareSystem->pwmPorts[channel], 0, &status);
+
+		F32 invLoopTime = (F32)((kSystemClockTicksPerMicrosecond * 1e3) / 
+						  getLoopTiming(&status));
+
+		switch(motorType){
+			case EHLMotorType::MT_TALON:{
+				motor->maxPwm = (I32)((2.037f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->deadbandMaxPwm = (I32)((1.539f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->centerPwm = (I32)((1.513f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->deadbandMinPwm = (I32)((1.487f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->minPwm = (I32)((0.989f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+
+				setPWMPeriodScale(hardwareSystem->pwmPorts[channel], 0, &status);
+			} break;
+			case EHLMotorType::MT_VICTOR:{
+				motor->maxPwm = (I32)((2.027f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->deadbandMaxPwm = (I32)((1.525f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->centerPwm = (I32)((1.507f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->deadbandMinPwm = (I32)((1.490f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+				motor->minPwm = (I32)((1.026f - DEFAULT_PWM_CENTER) * invLoopTime +
+								DEFAULT_PWM_STEPS_DOWN - 1);
+
+				setPWMPeriodScale(hardwareSystem->pwmPorts[channel], 1, &status);
+			} break;
+			default:{
+
+			}
+		}
+
+		latchPWMZero(hardwareSystem->pwmPorts[channel], &status);
+
+		motor->initialized = True;
+	}
+}
+
+void TerminateEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem){
+	if(motor && hardwareSystem && motor->initialized && hardwareSystem->initialized){
+		I32 status = 0;
+
+		setPWM(hardwareSystem->pwmPorts[motor->channel], 0, &status);
+		freePWMChannel(hardwareSystem->pwmPorts[motor->channel], &status);
+	}
+}
+
+void EHLMotorSet(EHLMotor* motor, EHLHardwareSystem* hardwareSystem, F32 speed){
+	if(motor && hardwareSystem && motor->initialized && hardwareSystem->initialized){
+		Clamp(speed, 0.0f, 1.0f);
+
+		I32 rawSpeed = 0;
+		if(speed == 0.0f){
+			rawSpeed = motor->centerPwm;
+		}else if(speed > 0.0f){
+			rawSpeed = (I32)(speed * (motor->maxPwm - motor->centerPwm + 1) + 
+					   (motor->centerPwm + 1.5f));
+		}else if(speed < 0.0f){
+			rawSpeed = (I32)(speed * (motor->centerPwm - 1 - motor->minPwm) + 
+					   (motor->centerPwm - 0.5f));
+		}
+
+		I32 status = 0;
+		setPWM(hardwareSystem->pwmPorts[motor->channel], rawSpeed, &status);
+	}
+}
+
+F32 EHLMotorGetValue(EHLMotor* motor, EHLHardwareSystem* hardwareSystem){
+	if(motor && hardwareSystem && motor->initialized && hardwareSystem->initialized){
+		I32 status = 0;
+		U32 rawSpeed = getPWM(hardwareSystem->pwmPorts[motor->channel], &status);
+
+		if(rawSpeed == 0){
+			return 0.0f;
+		}else if(rawSpeed > motor->maxPwm){
+			return 1.0f;
+		}else if(rawSpeed < motor->minPwm){
+			return -1.0f;
+		}else if(rawSpeed > motor->centerPwm + 1){
+			return (F32)((rawSpeed - motor->centerPwm + 1) / 
+				   (motor->maxPwm - motor->centerPwm + 1));
+		}else if(rawSpeed < motor->centerPwm - 1){
+			return (F32)((rawSpeed - motor->centerPwm - 1) / 
+				   (motor->centerPwm - 1 - motor->maxPwm));
+		}
 	}
 }
 
