@@ -9,7 +9,7 @@ class Task;
 
 typedef void* MODULE;
 
-typedef I32 HANDLE;
+typedef S32 HANDLE;
 
 /*******************************************************************
  * Util					                                           *
@@ -48,7 +48,7 @@ F32_CALLBACK_F32(Qu);
 /**
  * Return sign of x
  */
-I32_CALLBACK_F32(Sgn);
+S32_CALLBACK_F32(Sgn);
 
 /**
  * Normalizes x of interval [-1,1] to interval [0,1]
@@ -118,7 +118,7 @@ struct File{
 	U32 size;
 };
 
-U32 GetFileSize(std::string filename, I32 fd = 0, B32 useFD = False, B32 ignoreFailure = False);
+U32 GetFileSize(std::string filename, S32 fd = 0, B32 useFD = False, B32 ignoreFailure = False);
 
 /**
  * Reads entire file and returns File struct
@@ -139,7 +139,7 @@ B32 CopyFile(std::string src, std::string dest, B32 ignoreFailure = False);
 /**
  * Returns last time a file was written to
  */
-I64 GetLastWriteTime(std::string filename, B32 ignoreFailure = False);
+S64 GetLastWriteTime(std::string filename, B32 ignoreFailure = False);
 
 /*******************************************************************
  * ELON Engine Management                                          *
@@ -147,7 +147,7 @@ I64 GetLastWriteTime(std::string filename, B32 ignoreFailure = False);
 
 struct ELONEngine{
 	MODULE module;
-	I64 lastWriteTime;
+	S64 lastWriteTime;
 	ELONCallback* InitTeleop;
 	ELONCallback* TeleopCallback;
 	ELONCallback* InitTest;
@@ -212,7 +212,7 @@ struct EHLEncoder{
 	DigitalInput* srcA;
 	DigitalInput* srcB;
 	EHLEncodingType encodingType;
-	I32 index;
+	S32 index;
 	B32 initialized;
 };
 
@@ -223,9 +223,9 @@ void TerminateEHLEncoder(EHLEncoder* encoder);
 
 void EHLEncoderResetValue(EHLEncoder* encoder);
 
-I32 EHLEncoderRawValue(EHLEncoder* encoder);
+S32 EHLEncoderRawValue(EHLEncoder* encoder);
 
-I32 EHLEncoderValue(EHLEncoder* encoder);
+S32 EHLEncoderValue(EHLEncoder* encoder);
 
 F32 EHLEncoderPeriod(EHLEncoder* encoder);
 
@@ -242,7 +242,7 @@ F32 EHLEncoderRate(EHLEncoder* encoder, F32 distancePerPulse);
 
 void EHLEncoderSetMinRate(EHLEncoder* encoder, F32 distancePerPulse, F32 minRate);
 
-void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, I8 samplesToAverage);
+void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, S8 samplesToAverage);
 
 /*******************************************************************
  * Motor Controller                                                *
@@ -266,11 +266,11 @@ enum EHLMotorType{
 struct EHLMotor{
 	EHLMotorType motorType;
 	U32 channel;
-	I32 maxPwm;
-	I32 deadbandMaxPwm;
-	I32 centerPwm;
-	I32 deadbandMinPwm;
-	I32 minPwm;
+	S32 maxPwm;
+	S32 deadbandMaxPwm;
+	S32 centerPwm;
+	S32 deadbandMinPwm;
+	S32 minPwm;
 	B32 initialized;
 };
 
@@ -290,17 +290,17 @@ F32 EHLMotorGetValue(EHLMotor* motor, EHLHardwareSystem* hardwareSystem);
 /**
  * Initialize elevator motor
  */
-void InitializeElevator();
+void InitializeElevator(EHLHardwareSystem* hardwareSystem);
 
 /**
  * Writes motor value to motor
  */
-void UpdateElevator(ELONMemory* memory);
+void UpdateElevator(ELONMemory* memory, EHLHardwareSystem* hardwareSystem);
 
 /**
  * Free elevator memory
  */
-void TerminateElevator();
+void TerminateElevator(EHLHardwareSystem* hardwareSystem);
 
 /*******************************************************************
  * Chassis		                                                   *
@@ -309,17 +309,17 @@ void TerminateElevator();
 /**
  * Initialize chassis and motors
  */
-void InitializeChassis();
+void InitializeChassis(EHLHardwareSystem* hardwareSystem);
 
 /**
  * Writes motor values to motor controllers
  */
-void UpdateChassis(ELONMemory* memory);
+void UpdateChassis(ELONMemory* memory, EHLHardwareSystem* hardwareSystem);
 
 /**
  * Free chassis memory
  */
-void TerminateChassis();
+void TerminateChassis(EHLHardwareSystem* hardwareSystem);
 
 /*******************************************************************
  * Thread Space                                                    *
@@ -404,7 +404,7 @@ void ExecuteActionQueues(F32 dt);
 /**
  * Function callback for running the fast thread runtime on a separate thread
  */
-I32 FastThreadRuntime(U32 targetHz);
+S32 FastThreadRuntime(U32 targetHz);
 
 #endif
 

@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <cstdio>
 #include <cstdarg>
+#include <pthread.h>
 #include "WPILib.h"
 #include "ELONEngine.h"
 #include "EHL.h"
@@ -44,7 +45,7 @@ LOGGING_CALLBACK(Cout){
 		strcpy(fmt + strlen(fmt), "\n");
 		va_list args;
 		va_start(args, format);
-		I32 result = vprintf(fmt, args);
+		S32 result = vprintf(fmt, args);
 		va_end(args);
 		return result;
 	END_REGION;
@@ -59,7 +60,7 @@ LOGGING_CALLBACK(Cerr){
 		strcpy(fmt + strlen(fmt), "\n");
 		va_list args;
 		va_start(args, format);
-		I32 result = vprintf(fmt, args);
+		S32 result = vprintf(fmt, args);
 		va_end(args);
 		return result;
 	END_REGION;
@@ -81,6 +82,58 @@ void TerminateLogging(){
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+//TODO: WORRY ABOUT MULTIPLE CPUS
+
+intern inline void __init_asm_counters__(){
+	//enable user-mode access to the performance counter
+	__asm__ ("MCR p15, 0, %0, C9, C14, 0\n\t" :: "r"(1));
+
+	//disable counter overflow interrupts (just in case)
+	__asm__ ("MCR p15, 0, %0, C9, C14, 2\n\t" :: "r"(0x8000000f));
+}
+
+intern inline void __init_perfcounters__(B32 reset, B32 enableDivider){
+	S32 value = 1; //Enables all counters including cycle counter
+
+	if(reset){
+		value |= 2;
+		value |= 4;
+	}
+
+	if(enableDivider){
+		value |= 8;
+		value |= 16;
+	}
+
+	//program the performance-counter control-register:
+	__asm__ volatile ("MCR p15, 0, %0, c9, c12, 0\t\n" :: "r"(value));
+
+	//enable all counters:
+    __asm__ volatile ("MCR p15, 0, %0, c9, c12, 1\t\n" :: "r"(0x8000000f));
+
+    //clear overflows:
+    __asm__ volatile ("MCR p15, 0, %0, c9, c12, 3\t\n" :: "r"(0x8000000f));
+}
+
+intern void HandleCycleCounters(ELONMemory* memory){
+	Cout("CYCLE COUNTS:");
+	for(U32 i = 0; i < sizeofArr(memory->counters); i++){
+		CycleCounter* counter = memory->counters + i;
+		if(counter->hitCount){
+			Cout("\t%d: %ucycles %uhits %.04fcycles/hit", i, counter->cycleCount, 
+				 counter->hitCount, (F32)counter->cycleCount / (F32)counter->hitCount);
+		}
+		counter->hitCount = 0;
+		counter->cycleCount = 0;
+	}
+}
+
+RDTSC_CALLBACK(__rdtsc){
+	U32 value = 0;
+	__asm__ volatile ("MRC p15, 0, %0, c9, c13, 0\t\n": "=r"(value));
+	return value;
+}
 
 SYSTEM_TIME_CALLBACK(SystemTime){
 	return GetFPGATime() / 1000.0;
@@ -110,7 +163,7 @@ F32_CALLBACK_F32(Qu){
 	return x * x * x * x;
 }
 
-I32_CALLBACK_F32(Sgn){
+S32_CALLBACK_F32(Sgn){
 	return (0 < x) - (x < 0);
 }
 
@@ -137,19 +190,19 @@ F32_CALLBACK_F32_F32_F32_F32(SystemMagnitudeInterpolation){
 }
 
 F32_CALLBACK_F32(PrincipalAngleDeg){
-	return x - (I32)(x/360) * 360; //TODO: Test
+	return x - (S32)(x/360) * 360; //TODO: Test
 }
 
 F32_CALLBACK_F32(PrincipalAngleRad){
-	return x - (I32)(x/TAU) * TAU; //TODO: Test
+	return x - (S32)(x/TAU) * TAU; //TODO: Test
 }
 
 F32_CALLBACK_F32(MinDistAngleDeg){
-	return ((x - 180.0f) - (I32)((x - 180.0f)/360) * 360); //TODO: Test
+	return ((x - 180.0f) - (S32)((x - 180.0f)/360) * 360); //TODO: Test
 }
 
 F32_CALLBACK_F32(MinDistAngleRad){
-	return (x - (I32)(x/TAU) * TAU) - PI; //TODO: Test
+	return (x - (S32)(x/TAU) * TAU) - PI; //TODO: Test
 }
 
 F32_CALLBACK_F32_F32(AngularDistDeg){
@@ -252,7 +305,7 @@ B32 WriteEntireFile(std::string filename, U32 memorySize, void* memory, B32 igno
 		close(fileDescriptor);
 	}else{
 		if(!ignoreFailure){
-			I32 err = errno;
+			S32 err = errno;
 			Cerr("Could not create file: \"%s\"", filename.c_str());
 			Cerr("Errno: %d", err);
 		}
@@ -266,8 +319,8 @@ B32 CopyFile(std::string src, std::string dest, B32 ignoreFailure){
 	return WriteEntireFile(dest, srcFile.size, srcFile.data, ignoreFailure);
 }
 
-I64 GetLastWriteTime(std::string filename, B32 ignoreFailure){
-	I64 result = 0;
+S64 GetLastWriteTime(std::string filename, B32 ignoreFailure){
+	S64 result = 0;
 	struct stat statBuffer;
 	if(!stat(filename.c_str(), &statBuffer)){
 		result = statBuffer.st_mtim.tv_sec;
@@ -371,17 +424,17 @@ void UnloadELONEngine(ELONEngine* engine){
  void InitializeEHLHardwareSystem(EHLHardwareSystem* hardwareSystem){
  	if(hardwareSystem && hardwareSystem->initialized){
  		for(U32 i = 0; i < NUM_DIGITAL_CHANNELS; i++){
- 			I32 status = 0;
+ 			S32 status = 0;
  			hardwareSystem->dPorts[i] = initializeDigitalPort(getPort(i), &status);
  		}
 
  		for(U32 i = 0; i < NUM_RELAY_CHANNELS; i++){
- 			I32 status = 0;
+ 			S32 status = 0;
  			hardwareSystem->rPorts[i] = initializeDigitalPort(getPort(i), &status);
  		}
 
  		for(U32 i = 0; i < NUM_PWM_CHANNELS; i++){
- 			I32 status = 0;
+ 			S32 status = 0;
  			hardwareSystem->pwmPorts[i] = initializeDigitalPort(getPort(i), &status);
  		}
  	}
@@ -401,7 +454,7 @@ void InitializeEHLEncoder(EHLEncoder* encoder, U32 channelA, U32 channelB,
 
 		switch(encodingType){
 			case 4:{
-				I32 status = 0;
+				S32 status = 0;
 				encoder->HALEncoder = initializeEncoder(encoder->srcA->GetModuleForRouting(),
 														encoder->srcA->GetChannelForRouting(),
 														encoder->srcA->GetAnalogTriggerForRouting(),
@@ -430,7 +483,7 @@ void InitializeEHLEncoder(EHLEncoder* encoder, U32 channelA, U32 channelB,
 
 void TerminateEHLEncoder(EHLEncoder* encoder){
 	if(encoder && !encoder->counter && encoder->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		freeEncoder(encoder->HALEncoder, &status);
 		encoder->initialized = False;
 	}
@@ -438,16 +491,16 @@ void TerminateEHLEncoder(EHLEncoder* encoder){
 
 void EHLEncoderResetValue(EHLEncoder* encoder){
 	if(encoder && encoder->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		resetEncoder(encoder->HALEncoder, &status);
 	}else{
 		Cerr("NULL Encoder");
 	}
 }
 
-I32 EHLEncoderRawValue(EHLEncoder* encoder){
+S32 EHLEncoderRawValue(EHLEncoder* encoder){
 	if(encoder && encoder->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		return getEncoder(encoder->HALEncoder, &status);
 	}else{
 		Cerr("NULL Encoder");
@@ -455,13 +508,13 @@ I32 EHLEncoderRawValue(EHLEncoder* encoder){
 	}	
 }
 
-I32 EHLEncoderValue(EHLEncoder* encoder){
-	return (I32)(EHLEncoderRawValue(encoder) / encoder->encodingType);
+S32 EHLEncoderValue(EHLEncoder* encoder){
+	return (S32)(EHLEncoderRawValue(encoder) / encoder->encodingType);
 }
 
 F32 EHLEncoderPeriod(EHLEncoder* encoder){
 	if(encoder && encoder->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		return (F32) getEncoderPeriod(encoder->HALEncoder, &status);
 	}else{
 		Cerr("NULL Encoder");
@@ -471,7 +524,7 @@ F32 EHLEncoderPeriod(EHLEncoder* encoder){
 
 void EHLEncoderSetMaxPeriod(EHLEncoder* encoder, F32 maxPeriod){
 	if(encoder && encoder->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		setEncoderMaxPeriod(encoder->HALEncoder, maxPeriod, &status);
 	}else{
 		Cerr("NULL Encoder");
@@ -480,7 +533,7 @@ void EHLEncoderSetMaxPeriod(EHLEncoder* encoder, F32 maxPeriod){
 
 B32 EHLEncoderStopped(EHLEncoder* encoder){
 	if(encoder && encoder->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		return getEncoderStopped(encoder->HALEncoder, &status);
 	}else{
 		Cerr("NULL Encoder");
@@ -491,7 +544,7 @@ B32 EHLEncoderStopped(EHLEncoder* encoder){
 //TODO: Test to see what exactly direction is
 B32 EHLEncoderDirection(EHLEncoder* encoder){
 	if(encoder && encoder->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		return getEncoderDirection(encoder->HALEncoder, &status);
 	}else{
 		Cerr("NULL Encoder");
@@ -511,13 +564,13 @@ void EHLEncoderSetMinRate(EHLEncoder* encoder, F32 distancePerPulse, F32 minRate
 	EHLEncoderSetMaxPeriod(encoder, distancePerPulse / minRate);
 }
 
-void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, I8 samplesToAverage){
+void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, S8 samplesToAverage){
 	if(encoder && encoder->initialized){
 		if(samplesToAverage < 1){
 			samplesToAverage = 1;
 		}
 
-		I32 status = 0;
+		S32 status = 0;
 		setEncoderSamplesToAverage(encoder->HALEncoder,samplesToAverage, &status);
 	}else{
 		Cerr("NULL Encoder");
@@ -533,7 +586,7 @@ void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem,
 	if(motor && hardwareSystem && !motor->initialized && hardwareSystem->initialized){
 		motor->channel = channel;
 		motor->motorType = motorType;
-		I32 status = 0;		
+		S32 status = 0;		
 		allocatePWMChannel(hardwareSystem->pwmPorts[channel], &status);
 		setPWM(hardwareSystem->pwmPorts[channel], 0, &status);
 
@@ -542,29 +595,29 @@ void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem,
 
 		switch(motorType){
 			case EHLMotorType::MT_TALON:{
-				motor->maxPwm = (I32)((2.037f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->maxPwm = (S32)((2.037f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->deadbandMaxPwm = (I32)((1.539f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->deadbandMaxPwm = (S32)((1.539f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->centerPwm = (I32)((1.513f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->centerPwm = (S32)((1.513f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->deadbandMinPwm = (I32)((1.487f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->deadbandMinPwm = (S32)((1.487f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->minPwm = (I32)((0.989f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->minPwm = (S32)((0.989f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
 
 				setPWMPeriodScale(hardwareSystem->pwmPorts[channel], 0, &status);
 			} break;
 			case EHLMotorType::MT_VICTOR:{
-				motor->maxPwm = (I32)((2.027f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->maxPwm = (S32)((2.027f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->deadbandMaxPwm = (I32)((1.525f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->deadbandMaxPwm = (S32)((1.525f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->centerPwm = (I32)((1.507f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->centerPwm = (S32)((1.507f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->deadbandMinPwm = (I32)((1.490f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->deadbandMinPwm = (S32)((1.490f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
-				motor->minPwm = (I32)((1.026f - DEFAULT_PWM_CENTER) * invLoopTime +
+				motor->minPwm = (S32)((1.026f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
 
 				setPWMPeriodScale(hardwareSystem->pwmPorts[channel], 1, &status);
@@ -582,7 +635,7 @@ void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem,
 
 void TerminateEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem){
 	if(motor && hardwareSystem && motor->initialized && hardwareSystem->initialized){
-		I32 status = 0;
+		S32 status = 0;
 
 		setPWM(hardwareSystem->pwmPorts[motor->channel], 0, &status);
 		freePWMChannel(hardwareSystem->pwmPorts[motor->channel], &status);
@@ -593,25 +646,25 @@ void EHLMotorSet(EHLMotor* motor, EHLHardwareSystem* hardwareSystem, F32 speed){
 	if(motor && hardwareSystem && motor->initialized && hardwareSystem->initialized){
 		Clamp(speed, 0.0f, 1.0f);
 
-		I32 rawSpeed = 0;
+		S32 rawSpeed = 0;
 		if(speed == 0.0f){
 			rawSpeed = motor->centerPwm;
 		}else if(speed > 0.0f){
-			rawSpeed = (I32)(speed * (motor->maxPwm - motor->centerPwm + 1) + 
+			rawSpeed = (S32)(speed * (motor->maxPwm - motor->centerPwm + 1) + 
 					   (motor->centerPwm + 1.5f));
 		}else if(speed < 0.0f){
-			rawSpeed = (I32)(speed * (motor->centerPwm - 1 - motor->minPwm) + 
+			rawSpeed = (S32)(speed * (motor->centerPwm - 1 - motor->minPwm) + 
 					   (motor->centerPwm - 0.5f));
 		}
 
-		I32 status = 0;
+		S32 status = 0;
 		setPWM(hardwareSystem->pwmPorts[motor->channel], rawSpeed, &status);
 	}
 }
 
 F32 EHLMotorGetValue(EHLMotor* motor, EHLHardwareSystem* hardwareSystem){
 	if(motor && hardwareSystem && motor->initialized && hardwareSystem->initialized){
-		I32 status = 0;
+		S32 status = 0;
 		U32 rawSpeed = getPWM(hardwareSystem->pwmPorts[motor->channel], &status);
 
 		if(rawSpeed == 0){
@@ -639,14 +692,14 @@ Encoder* liftEncoder;
 
 MUTEX_ID elevatorMotorLock;
 
-void InitializeElevator(){
+void InitializeElevator(EHLHardwareSystem* hardwareSystem){
 	elevatorMotorLock = initializeMutexNormal();
 	elevatorMotor = new Victor(ELEVATOR_PORT);
 	liftEncoder = new Encoder(LIFT_ENCODER_PORT_A, LIFT_ENCODER_PORT_B, true, Encoder::EncodingType::k4X);
 	Cout("Elevator Initialized");
 }
 
-void UpdateElevator(ELONMemory* memory){
+void UpdateElevator(ELONMemory* memory, EHLHardwareSystem* hardwareSystem){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	ElevatorState* state = &(elonState->elevatorState);
 	if(!state->isInitialized){
@@ -661,7 +714,7 @@ void UpdateElevator(ELONMemory* memory){
 	END_REGION;
 }
 
-void TerminateElevator(){
+void TerminateElevator(EHLHardwareSystem* hardwareSystem){
 	delete liftEncoder;
 	delete elevatorMotor;
 	deleteMutex(elevatorMotorLock);
@@ -681,7 +734,7 @@ Encoder* rightEncoder;
 MUTEX_ID chassisMotorLock;
 MUTEX_ID chassisGyroLock;
 
-void InitializeChassis(){
+void InitializeChassis(EHLHardwareSystem* hardwareSystem){
 	chassisMotorLock = initializeMutexNormal();
 	chassisGyroLock = initializeMutexNormal();
 	motors[0] = new Talon(CHASSIS_PORT_FL);
@@ -695,7 +748,7 @@ void InitializeChassis(){
 	Cout("Chassis Initialized");
 }
 
-void UpdateChassis(ELONMemory* memory){
+void UpdateChassis(ELONMemory* memory, EHLHardwareSystem* hardwareSystem){
 	ELONState* elonState = scast<ELONState*>(memory->permanentStorage);
 	ChassisState* state = &(elonState->chassisState);
 
@@ -724,7 +777,7 @@ void UpdateChassis(ELONMemory* memory){
 	Cout("%d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
 }
 
-void TerminateChassis(){
+void TerminateChassis(EHLHardwareSystem* hardwareSystem){
 	delete leftEncoder;
 	delete rightEncoder;
 	delete gyro;
@@ -735,6 +788,315 @@ void TerminateChassis(){
 	deleteMutex(chassisMotorLock);
 }
 #endif
+
+/*******************************************************************
+ * Input					                                       *
+ *******************************************************************/
+
+intern void ProcessDigitalButton(U32 buttonBitSet, ButtonState* oldState, U32 buttonBit, ButtonState* newState){
+	newState->endedDown = ((buttonBitSet & buttonBit) == buttonBit);
+	newState->halfTransitionCount = (oldState->endedDown != newState->endedDown) ? 1 : 0;
+}
+
+intern void ProcessStickInput(F32* _x, F32* _y, InputType inputType){
+	F32 x = *_x;
+	F32 y = *_y;
+	F32 mgntdSquared = x*x+y*y;
+
+	if(mgntdSquared < DEADZONE_SQ){
+		x = 0.0f;
+		y = 0.0f;
+	}else{
+		F32 mgntd = sqrtf(mgntdSquared);
+		F32 nlxFactor = x / mgntd;
+		F32 nlyFactor = y / mgntd;
+		if(mgntd > 1.0f){
+			mgntd = 1.0f;
+		}
+		mgntd -= DEADZONE;
+		x = nlxFactor * mgntd;
+		y = nlyFactor * mgntd;
+		if(inputType == InputType::LINEAR){
+			x = x / (1 - DEADZONE * nlxFactor);
+			y = y / (1 - DEADZONE * nlyFactor);
+		}else if(inputType == InputType::QUADRATIC){
+			x = Sq(x / (1 - DEADZONE * nlxFactor * Sgn(x))) * Sgn(x);
+			y = Sq(y / (1 - DEADZONE * nlyFactor * Sgn(y))) * Sgn(y);
+		}else if(inputType == InputType::QUARTIC){
+			x = Qu(x / (1 - DEADZONE * nlxFactor * Sgn(x))) * Sgn(x);
+			y = Qu(y / (1 - DEADZONE * nlyFactor * Sgn(y))) * Sgn(y);
+		}
+	}
+
+	*_x = x;
+	*_y = y;
+}
+
+intern void ProcessTriggerInput(F32* _t, InputType inputType){
+	F32 t = *_t;
+	if(t < TRIGGER_DEADZONE){
+		t = 0.0f;
+	}else{
+		if(inputType == InputType::LINEAR){
+			t = (t - TRIGGER_DEADZONE * Sgn(t))/(1.0f - TRIGGER_DEADZONE);
+		}else if(inputType == InputType::QUADRATIC){
+			t = Sq((t - TRIGGER_DEADZONE * Sgn(t))/(1.0f - TRIGGER_DEADZONE));
+		}else if(inputType == InputType::QUARTIC){
+			t = Qu((t - TRIGGER_DEADZONE * Sgn(t))/(1.0f - TRIGGER_DEADZONE));
+		}
+	}
+
+	*_t = t;
+}
+
+void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
+
+
+	for(U32 i = 0; i < NUM_GAMEPADS; i++){
+
+		Gamepad* newGamepad = GetGamepad(newInput, i);
+		Gamepad* oldGamepad = GetGamepad(oldInput, i);
+
+		//Processing buttons
+		U32 buttonBitSet = ds->GetStickButtons(i);
+		//Cout("%d", buttonBitSet);
+
+		for(U32 j = 0; j < NUM_BUTTONS; j++){
+			int buttonBit = 1 << j;
+			ProcessDigitalButton(buttonBitSet, &oldGamepad->buttons[j], buttonBit, &newGamepad->buttons[j]);
+		}
+
+		//Cout("%d", newGamepad->x.endedDown);
+
+		//Processing DPAD values
+		S32 dpad = ds->GetStickPOV(i, 0);
+
+		if(dpad != -1){
+			ProcessDigitalButton((dpad >= 315 || dpad <= 45)? 1 : 0, &oldGamepad->up, 1, &newGamepad->up);
+			ProcessDigitalButton((dpad >= 45 && dpad <= 135)? 1 : 0, &oldGamepad->right, 1, &newGamepad->right);
+			ProcessDigitalButton((dpad >= 135 && dpad <= 225)? 1 : 0, &oldGamepad->down, 1, &newGamepad->down);
+			ProcessDigitalButton((dpad >= 225 && dpad <= 315)? 1 : 0, &oldGamepad->left, 1, &newGamepad->left);
+		}
+
+		//Circular deadzone processing of left joystick
+		F32 lx = ds->GetStickAxis(i, _LX);
+		F32 ly = ds->GetStickAxis(i, _LY);
+
+		ProcessStickInput(&lx, &ly, newGamepad->inputType);
+		newGamepad->lx = lx;
+		newGamepad->ly = ly;
+
+		//Circular deadzone processing of right joystick
+		F32 rx = ds->GetStickAxis(i, _RX);
+		F32 ry = ds->GetStickAxis(i, _RY);
+
+		ProcessStickInput(&rx, &ry, newGamepad->inputType);
+		newGamepad->rx = rx;
+		newGamepad->ry = ry;
+
+		//Linear deadzone processing of left trigger
+		F32 lt = ds->GetStickAxis(i, _LT);
+		ProcessTriggerInput(&lt, newGamepad->inputType);
+		newGamepad->lt = lt;
+
+		//Linear deadzone processing of right trigger
+		F32 rt = ds->GetStickAxis(i, _RT);
+		ProcessTriggerInput(&rt, newGamepad->inputType);
+		newGamepad->rt = rt;
+	}
+}
+
+intern void GetInputFileLocation(EHLState* state, B32 inputStream, U32 slotIndex, U32 destCount, char* dest){
+	sprintf(dest, "%s_%d_%s.eid", ELONInputRecordingDataFileName, slotIndex, inputStream ? "input" : "state");
+}
+
+intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIndex){
+	EHLReplayBuffer* replayBuffer = &state->replayBuffers[lastTeleopRecordingIndex];
+	if(replayBuffer->memoryBlock){
+		state->lastTeleopRecordingIndex = lastTeleopRecordingIndex;
+
+
+		time_t t = time(NULL);
+		struct tm* time = localtime(&t);
+		char str_time[100];
+		strftime(str_time, sizeof(str_time) - 1, "_%Y%m%d%H%M%s", time);
+		char filename[256];
+		sprintf(filename, "%s_%s.eid", ELONTeleopRecordingDataFileName, str_time);
+
+		state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+#if RECORD_STATE
+		memcpy(replayBuffer->memoryBlock, state->totalELONMemoryBlock, state->totalSize);
+		Cout("Started teleop recording");
+#endif
+	}else{
+		Cerr("Unable to start recording teleop input");
+	}
+}
+
+intern void EndTeleopInputRecording(EHLState* state){
+	close(state->lastTeleopRecordingHandle);
+	state->lastTeleopRecordingIndex = 0;
+}
+
+//TODO: Lazily write block to memory and use memory copy instead?
+intern void BeginInputRecording(EHLState* state, U32 inputRecordingIndex){
+	EHLReplayBuffer* replayBuffer = &state->replayBuffers[inputRecordingIndex];
+	if(replayBuffer->memoryBlock){	
+
+		state->inputRecordingIndex = inputRecordingIndex;
+
+		char filename[256];
+		GetInputFileLocation(state, true, inputRecordingIndex, sizeof(filename), filename);
+
+		state->recordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+
+#if RECORD_STATE
+		memcpy(replayBuffer->memoryBlock, state->totalELONMemoryBlock, state->totalSize);
+#endif
+	}else{
+		Cerr("Unable to start recording input");
+	}
+}
+
+intern void EndInputRecording(EHLState* state){
+	if(state->recordingHandle){
+		close(state->recordingHandle);
+	}
+	state->inputRecordingIndex = 0;
+}
+
+intern void BeginInputPlayBack(EHLState* state, U32 inputRecordingIndex){
+	EHLReplayBuffer* replayBuffer = &state->replayBuffers[inputRecordingIndex];
+	if(replayBuffer->memoryBlock){
+		state->inputPlayBackIndex = inputRecordingIndex;
+
+		char filename[256];
+		GetInputFileLocation(state, true, inputRecordingIndex, sizeof(filename), filename);
+
+		state->playBackHandle = open(filename, O_RDONLY);
+#if RECORD_STATE
+		memcpy(state->totalELONMemoryBlock, replayBuffer->memoryBlock, state->totalSize);
+#endif
+	}else{
+		Cerr("Unable to start input playback");
+	}
+}
+
+intern void EndInputPlayBack(EHLState* state){
+	if(state->playBackHandle){
+		close(state->playBackHandle);
+	}
+	state->inputPlayBackIndex = 0;
+}
+
+intern void RecordInput(EHLState* state, Input* input){
+	write(state->recordingHandle, input, sizeof(*input));
+}
+
+intern void PlayBackInput(EHLState* state, Input* input){
+	if(read(state->playBackHandle, input, sizeof(*input)) < 1){
+		S32 err = errno;
+		U32 playBackIndex = state->inputPlayBackIndex;
+		EndInputPlayBack(state);
+		BeginInputPlayBack(state, playBackIndex);
+		read(state->playBackHandle, input, sizeof(*input));
+		if(err != 32){
+			Cerr("read: %d", err);
+		}
+	}
+}
+
+intern void BeginAutonomousRecording(EHLState* state, U32 autonRecordingIndex){
+	EHLReplayBuffer* autonBuffer = &state->autonBuffers[autonRecordingIndex];
+	if(autonBuffer->memoryBlock){	
+
+		state->autonRecordingIndex = autonRecordingIndex;
+		state->recordingAuton = True;
+		state->autonCyclesCounter = 0;
+		state->autonRecordingHandle = open(autonBuffer->filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+
+	}else{
+		Cerr("Unable to start recording autonomous");
+	}
+}
+
+intern void EndAutonomousRecording(EHLState* state){
+	if(state->recordingAuton){
+		close(state->autonRecordingHandle);
+		state->recordingAuton = False;
+		state->autonCyclesCounter = 0;
+	}
+}
+
+intern void RecordAutonomous(EHLState* state, Input* input){
+	write(state->autonRecordingHandle, input, sizeof(*input));
+	state->autonCyclesCounter++;
+}
+
+intern void BeginAutonomousPlayback(EHLState* state, U32 autonPlayBackIndex){
+	EHLReplayBuffer* autonBuffer = &state->autonBuffers[autonPlayBackIndex];
+	if(autonBuffer->memoryBlock){
+		state->autonPlayBackIndex = autonPlayBackIndex;
+		state->playingAuton = True;
+		state->autonCyclesCounter = 0;
+		state->autonPlayBackHandle = open(autonBuffer->filename, O_RDONLY);
+	}else{
+		Cerr("Unable to start autonomous playback");
+	}
+}
+
+intern void EndAutonomousPlayback(EHLState* state){
+	if(state->playingAuton){
+		close(state->autonPlayBackHandle);
+		state->playingAuton = False;
+		state->autonCyclesCounter = 0;
+	}
+}
+
+intern void PlayBackAutonomous(EHLState* state, Input* input){
+	if(read(state->autonPlayBackHandle, input, sizeof(*input)) < 1){
+		S32 err = errno;
+		if(err != 32){
+			Cerr("read: %d", err);
+		}
+		state->autonCyclesCounter++;
+	}
+
+}
+
+intern void ProcessEHLInputProtocols(EHLState* state, Input* input){
+	for(U32 i = 0; i < NUM_GAMEPADS; i++){
+		if(input->gamepads[i].a.endedDown && input->gamepads[i].a.halfTransitionCount){
+			EndInputRecording(state);
+			EndInputPlayBack(state);
+			BeginInputRecording(state, 1);
+			Cout("Began recording input at index: %d", state->inputRecordingIndex);
+		}else if(input->gamepads[i].x.endedDown && input->gamepads[i].x.halfTransitionCount){
+			EndInputRecording(state);
+			EndInputPlayBack(state);
+			BeginInputPlayBack(state, 1);
+			Cout("Began input playBack at index: %d", state->inputPlayBackIndex);
+		}else if(input->gamepads[i].back.endedDown && input->gamepads[i].back.halfTransitionCount){
+			EndInputRecording(state);
+			EndInputPlayBack(state);
+			Cout("Stopped Recording and PlayBack of input");
+		}
+
+		if(input->gamepads[i].b.endedDown && input->gamepads[i].b.halfTransitionCount){
+			EndAutonomousRecording(state);
+			BeginAutonomousRecording(state, state->autonRecordingIndex);
+			Cout("Began recording autonomous at index: %d", state->autonRecordingIndex);
+			state->recordingAuton = True;
+			state->autonCyclesCounter = 0;
+		}else if(input->gamepads[i].y.endedDown && input->gamepads[i].y.halfTransitionCount){
+			Cout("Stopped recording autonomous at index: %d", state->autonRecordingIndex);
+			EndAutonomousRecording(state);
+			state->recordingAuton = False;
+			state->autonCyclesCounter = 0;
+		}
+	}
+}
+
 /*******************************************************************
  * Thread Space                                                    *
  *******************************************************************/
@@ -923,7 +1285,7 @@ void ExecuteActionQueues(F32 dt){
 	END_REGION;
 }
 
-I32 FastThreadRuntime(U32 targetHz){
+S32 FastThreadRuntime(U32 targetHz){
 #if DISABLE_FAST_THREAD
 #else
 	F64 targetMSPerFrame = 1000.0 / targetHz;
@@ -973,317 +1335,53 @@ I32 FastThreadRuntime(U32 targetHz){
 #endif
 	return 0;
 }
-
 #endif
 
-/*******************************************************************
- * Input					                                       *
- *******************************************************************/
+void* FastThreadRuntime(void* targetHz){
 
-intern void ProcessDigitalButton(U32 buttonBitSet, ButtonState* oldState, U32 buttonBit, ButtonState* newState){
-	newState->endedDown = ((buttonBitSet & buttonBit) == buttonBit);
-	newState->halfTransitionCount = (oldState->endedDown != newState->endedDown) ? 1 : 0;
-}
+	F64 targetMSPerFrame = 1000.0 / *((U32*) targetHz);
+	F64 startTime = SystemTime();
+	F64 lastTime = SystemTime();
+	U32 lastCycleCount = __rdtsc();
 
-intern void ProcessStickInput(F32* _x, F32* _y, InputType inputType){
-	F32 x = *_x;
-	F32 y = *_y;
-	F32 mgntdSquared = x*x+y*y;
+	for(;;){
 
-	if(mgntdSquared < DEADZONE_SQ){
-		x = 0.0f;
-		y = 0.0f;
-	}else{
-		F32 mgntd = sqrtf(mgntdSquared);
-		F32 nlxFactor = x / mgntd;
-		F32 nlyFactor = y / mgntd;
-		if(mgntd > 1.0f){
-			mgntd = 1.0f;
-		}
-		mgntd -= DEADZONE;
-		x = nlxFactor * mgntd;
-		y = nlyFactor * mgntd;
-		if(inputType == InputType::LINEAR){
-			x = x / (1 - DEADZONE * nlxFactor);
-			y = y / (1 - DEADZONE * nlyFactor);
-		}else if(inputType == InputType::QUADRATIC){
-			x = Sq(x / (1 - DEADZONE * nlxFactor * Sgn(x))) * Sgn(x);
-			y = Sq(y / (1 - DEADZONE * nlyFactor * Sgn(y))) * Sgn(y);
-		}else if(inputType == InputType::QUARTIC){
-			x = Qu(x / (1 - DEADZONE * nlxFactor * Sgn(x))) * Sgn(x);
-			y = Qu(y / (1 - DEADZONE * nlyFactor * Sgn(y))) * Sgn(y);
-		}
-	}
+		
 
-	*_x = x;
-	*_y = y;
-}
-
-intern void ProcessTriggerInput(F32* _t, InputType inputType){
-	F32 t = *_t;
-	if(t < TRIGGER_DEADZONE){
-		t = 0.0f;
-	}else{
-		if(inputType == InputType::LINEAR){
-			t = (t - TRIGGER_DEADZONE * Sgn(t))/(1.0f - TRIGGER_DEADZONE);
-		}else if(inputType == InputType::QUADRATIC){
-			t = Sq((t - TRIGGER_DEADZONE * Sgn(t))/(1.0f - TRIGGER_DEADZONE));
-		}else if(inputType == InputType::QUARTIC){
-			t = Qu((t - TRIGGER_DEADZONE * Sgn(t))/(1.0f - TRIGGER_DEADZONE));
-		}
-	}
-
-	*_t = t;
-}
-
-void UpdateInput(DriverStation* ds, Input* newInput, Input* oldInput){
-
-
-	for(U32 i = 0; i < NUM_GAMEPADS; i++){
-
-		Gamepad* newGamepad = GetGamepad(newInput, i);
-		Gamepad* oldGamepad = GetGamepad(oldInput, i);
-
-		//Processing buttons
-		U32 buttonBitSet = ds->GetStickButtons(i);
-		//Cout("%d", buttonBitSet);
-
-		for(U32 j = 0; j < NUM_BUTTONS; j++){
-			int buttonBit = 1 << j;
-			ProcessDigitalButton(buttonBitSet, &oldGamepad->buttons[j], buttonBit, &newGamepad->buttons[j]);
+		//Time processing
+		F64 workMSElapsed = SystemTime() - lastTime;
+		if(workMSElapsed < targetMSPerFrame){
+			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
+			F64 testMSElapsedForFrame = SystemTime() - lastTime;
+			if(testMSElapsedForFrame >= targetMSPerFrame){
+				Cerr("Fast Thread Runtime waited too long.");
+			}else{
+				do{
+					workMSElapsed = SystemTime() - lastTime;
+				} while(workMSElapsed <= targetMSPerFrame);
+			}
+		}else{
+			//TODO: MISSED FRAME
+			//TODO: Log
+			Cout("Missed last Fast Thread Runtime frame.");
 		}
 
-		//Cout("%d", newGamepad->x.endedDown);
+		U32 endCycleCount = __rdtsc();
+		F64 endTime = SystemTime();
 
-		//Processing DPAD values
-		I32 dpad = ds->GetStickPOV(i, 0);
+		U32 cyclesElapsed = endCycleCount - lastCycleCount;
+		lastCycleCount = endCycleCount;
+		F64 megaCyclesPerFrame = ((F64)cyclesElapsed / (1000.0 * 1000.0));
 
-		if(dpad != -1){
-			ProcessDigitalButton((dpad >= 315 || dpad <= 45)? 1 : 0, &oldGamepad->up, 1, &newGamepad->up);
-			ProcessDigitalButton((dpad >= 45 && dpad <= 135)? 1 : 0, &oldGamepad->right, 1, &newGamepad->right);
-			ProcessDigitalButton((dpad >= 135 && dpad <= 225)? 1 : 0, &oldGamepad->down, 1, &newGamepad->down);
-			ProcessDigitalButton((dpad >= 225 && dpad <= 315)? 1 : 0, &oldGamepad->left, 1, &newGamepad->left);
-		}
+		F64 frameTimeMS = endTime - lastTime;
+		lastTime = endTime;
+		F64 Hz = 1000.0/ frameTimeMS;
 
-		//Circular deadzone processing of left joystick
-		F32 lx = ds->GetStickAxis(i, _LX);
-		F32 ly = ds->GetStickAxis(i, _LY);
-
-		ProcessStickInput(&lx, &ly, newGamepad->inputType);
-		newGamepad->lx = lx;
-		newGamepad->ly = ly;
-
-		//Circular deadzone processing of right joystick
-		F32 rx = ds->GetStickAxis(i, _RX);
-		F32 ry = ds->GetStickAxis(i, _RY);
-
-		ProcessStickInput(&rx, &ry, newGamepad->inputType);
-		newGamepad->rx = rx;
-		newGamepad->ry = ry;
-
-		//Linear deadzone processing of left trigger
-		F32 lt = ds->GetStickAxis(i, _LT);
-		ProcessTriggerInput(&lt, newGamepad->inputType);
-		newGamepad->lt = lt;
-
-		//Linear deadzone processing of right trigger
-		F32 rt = ds->GetStickAxis(i, _RT);
-		ProcessTriggerInput(&rt, newGamepad->inputType);
-		newGamepad->rt = rt;
+		//Frame logging
+		//COUT("Last Core Thread frame time: %.04fms (%.04fHz); Cycles elapsed: %.04fMCPF.",
+		//	   frameTimeMS, Hz, megaCyclesPerFrame);
 	}
 }
-
-intern void GetInputFileLocation(EHLState* state, B32 inputStream, U32 slotIndex, U32 destCount, char* dest){
-	sprintf(dest, "%s_%d_%s.eid", ELONInputRecordingDataFileName, slotIndex, inputStream ? "input" : "state");
-}
-
-intern void BeginTeleopInputRecording(EHLState* state, U32 lastTeleopRecordingIndex){
-	EHLReplayBuffer* replayBuffer = &state->replayBuffers[lastTeleopRecordingIndex];
-	if(replayBuffer->memoryBlock){
-		state->lastTeleopRecordingIndex = lastTeleopRecordingIndex;
-
-
-		time_t t = time(NULL);
-		struct tm* time = localtime(&t);
-		char str_time[100];
-		strftime(str_time, sizeof(str_time) - 1, "_%Y%m%d%H%M%s", time);
-		char filename[256];
-		sprintf(filename, "%s_%s.eid", ELONTeleopRecordingDataFileName, str_time);
-
-		state->lastTeleopRecordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
-#if RECORD_STATE
-		memcpy(replayBuffer->memoryBlock, state->totalELONMemoryBlock, state->totalSize);
-		Cout("Started teleop recording");
-#endif
-	}else{
-		Cerr("Unable to start recording teleop input");
-	}
-}
-
-intern void EndTeleopInputRecording(EHLState* state){
-	close(state->lastTeleopRecordingHandle);
-	state->lastTeleopRecordingIndex = 0;
-}
-
-//TODO: Lazily write block to memory and use memory copy instead?
-intern void BeginInputRecording(EHLState* state, U32 inputRecordingIndex){
-	EHLReplayBuffer* replayBuffer = &state->replayBuffers[inputRecordingIndex];
-	if(replayBuffer->memoryBlock){	
-
-		state->inputRecordingIndex = inputRecordingIndex;
-
-		char filename[256];
-		GetInputFileLocation(state, true, inputRecordingIndex, sizeof(filename), filename);
-
-		state->recordingHandle = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
-
-#if RECORD_STATE
-		memcpy(replayBuffer->memoryBlock, state->totalELONMemoryBlock, state->totalSize);
-#endif
-	}else{
-		Cerr("Unable to start recording input");
-	}
-}
-
-intern void EndInputRecording(EHLState* state){
-	if(state->recordingHandle){
-		close(state->recordingHandle);
-	}
-	state->inputRecordingIndex = 0;
-}
-
-intern void BeginInputPlayBack(EHLState* state, U32 inputRecordingIndex){
-	EHLReplayBuffer* replayBuffer = &state->replayBuffers[inputRecordingIndex];
-	if(replayBuffer->memoryBlock){
-		state->inputPlayBackIndex = inputRecordingIndex;
-
-		char filename[256];
-		GetInputFileLocation(state, true, inputRecordingIndex, sizeof(filename), filename);
-
-		state->playBackHandle = open(filename, O_RDONLY);
-#if RECORD_STATE
-		memcpy(state->totalELONMemoryBlock, replayBuffer->memoryBlock, state->totalSize);
-#endif
-	}else{
-		Cerr("Unable to start input playback");
-	}
-}
-
-intern void EndInputPlayBack(EHLState* state){
-	if(state->playBackHandle){
-		close(state->playBackHandle);
-	}
-	state->inputPlayBackIndex = 0;
-}
-
-intern void RecordInput(EHLState* state, Input* input){
-	write(state->recordingHandle, input, sizeof(*input));
-}
-
-intern void PlayBackInput(EHLState* state, Input* input){
-	if(read(state->playBackHandle, input, sizeof(*input)) < 1){
-		I32 err = errno;
-		U32 playBackIndex = state->inputPlayBackIndex;
-		EndInputPlayBack(state);
-		BeginInputPlayBack(state, playBackIndex);
-		read(state->playBackHandle, input, sizeof(*input));
-		if(err != 32){
-			Cerr("read: %d", err);
-		}
-	}
-}
-
-intern void BeginAutonomousRecording(EHLState* state, U32 autonRecordingIndex){
-	EHLReplayBuffer* autonBuffer = &state->autonBuffers[autonRecordingIndex];
-	if(autonBuffer->memoryBlock){	
-
-		state->autonRecordingIndex = autonRecordingIndex;
-		state->recordingAuton = True;
-		state->autonCyclesCounter = 0;
-		state->autonRecordingHandle = open(autonBuffer->filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
-
-	}else{
-		Cerr("Unable to start recording autonomous");
-	}
-}
-
-intern void EndAutonomousRecording(EHLState* state){
-	if(state->recordingAuton){
-		close(state->autonRecordingHandle);
-		state->recordingAuton = False;
-		state->autonCyclesCounter = 0;
-	}
-}
-
-intern void RecordAutonomous(EHLState* state, Input* input){
-	write(state->autonRecordingHandle, input, sizeof(*input));
-	state->autonCyclesCounter++;
-}
-
-intern void BeginAutonomousPlayback(EHLState* state, U32 autonPlayBackIndex){
-	EHLReplayBuffer* autonBuffer = &state->autonBuffers[autonPlayBackIndex];
-	if(autonBuffer->memoryBlock){
-		state->autonPlayBackIndex = autonPlayBackIndex;
-		state->playingAuton = True;
-		state->autonCyclesCounter = 0;
-		state->autonPlayBackHandle = open(autonBuffer->filename, O_RDONLY);
-	}else{
-		Cerr("Unable to start autonomous playback");
-	}
-}
-
-intern void EndAutonomousPlayback(EHLState* state){
-	if(state->playingAuton){
-		close(state->autonPlayBackHandle);
-		state->playingAuton = False;
-		state->autonCyclesCounter = 0;
-	}
-}
-
-intern void PlayBackAutonomous(EHLState* state, Input* input){
-	if(read(state->autonPlayBackHandle, input, sizeof(*input)) < 1){
-		I32 err = errno;
-		if(err != 32){
-			Cerr("read: %d", err);
-		}
-		state->autonCyclesCounter++;
-	}
-
-}
-
-intern void ProcessEHLInputProtocols(EHLState* state, Input* input){
-	for(U32 i = 0; i < NUM_GAMEPADS; i++){
-		if(input->gamepads[i].a.endedDown && input->gamepads[i].a.halfTransitionCount){
-			EndInputRecording(state);
-			EndInputPlayBack(state);
-			BeginInputRecording(state, 1);
-			Cout("Began recording input at index: %d", state->inputRecordingIndex);
-		}else if(input->gamepads[i].x.endedDown && input->gamepads[i].x.halfTransitionCount){
-			EndInputRecording(state);
-			EndInputPlayBack(state);
-			BeginInputPlayBack(state, 1);
-			Cout("Began input playBack at index: %d", state->inputPlayBackIndex);
-		}else if(input->gamepads[i].back.endedDown && input->gamepads[i].back.halfTransitionCount){
-			EndInputRecording(state);
-			EndInputPlayBack(state);
-			Cout("Stopped Recording and PlayBack of input");
-		}
-
-		if(input->gamepads[i].b.endedDown && input->gamepads[i].b.halfTransitionCount){
-			EndAutonomousRecording(state);
-			BeginAutonomousRecording(state, state->autonRecordingIndex);
-			Cout("Began recording autonomous at index: %d", state->autonRecordingIndex);
-			state->recordingAuton = True;
-			state->autonCyclesCounter = 0;
-		}else if(input->gamepads[i].y.endedDown && input->gamepads[i].y.halfTransitionCount){
-			Cout("Stopped recording autonomous at index: %d", state->autonRecordingIndex);
-			EndAutonomousRecording(state);
-			state->recordingAuton = False;
-			state->autonCyclesCounter = 0;
-		}
-	}
-}
-
 
 /*******************************************************************
  * ELON Class				                                       *
@@ -1321,6 +1419,7 @@ void ELON::RobotMain(){
 	//Memory startup
 	EHLState ehlState = {};
 	ELONMemory elonMemory;
+
 
 #if 1
 	//TODO: Check if this works with Just 3 Billion
@@ -1360,13 +1459,17 @@ void ELON::RobotMain(){
 	if(ehlState.totalELONMemoryBlock != MAP_FAILED){
 		Cout("Total ELON memory successfully allocated with size of %lu Bytes", ehlState.totalSize);
 	}else{
-		I32 err = errno;
+		S32 err = errno;
 		Cerr("Total ELON memory allocation failed with size of %lu Bytes", ehlState.totalSize);
 		Cerr("Errno: %d", err);
 	}
 
 	elonMemory.permanentStorage = ehlState.totalELONMemoryBlock;
 	elonMemory.transientStorage = ((U8*)elonMemory.permanentStorage + elonMemory.permanentStorageSize);
+
+	//Hardware initialization
+	EHLHardwareSystem hardwareSystem = {};
+	InitializeEHLHardwareSystem(&hardwareSystem);
 
 	//Input initialization
 	Input inputs[2];
@@ -1376,10 +1479,10 @@ void ELON::RobotMain(){
 	Input* oldInput = &inputs[1];
 
 	//Chassis initialization
-	InitializeChassis();
+	InitializeChassis(&hardwareSystem);
 
 	//Elevator initialization
-	InitializeElevator();
+	InitializeElevator(&hardwareSystem);
 
 	//ELONEngine startup
 	ELONEngine engine = LoadELONEngine(ELONEngineBinary);
@@ -1401,7 +1504,7 @@ void ELON::RobotMain(){
 		replayBuffer->memoryBlock = mmap(NULL, ehlState.totalSize, PROT_READ | PROT_WRITE,
 										 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
-		I32 err = errno;
+		S32 err = errno;
 
 		if(replayBuffer->memoryBlock == MAP_FAILED){
 			Cerr("Failed To Allocate Replay Buffer: %d With size of: %d bytes", i, ehlState.totalSize);
@@ -1423,7 +1526,7 @@ void ELON::RobotMain(){
 		autonBuffer->memoryBlock = mmap(NULL, autonBufferSize, PROT_READ | PROT_WRITE,
 										 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
-		I32 err = errno;
+		S32 err = errno;
 
 		if(autonBuffer->memoryBlock == MAP_FAILED){
 			Cerr("Failed To Allocate Autonomous Buffer: %d With size of: %d bytes", i, autonBufferSize);
@@ -1431,10 +1534,22 @@ void ELON::RobotMain(){
 		}
 	}
 
+	Cout("Starting ELON Hardware Layer Core Loop");
+
+	__init_asm_counters__();
+	__init_perfcounters__(True, False);
+
+	//Thread startup
+	S32 threadID = 0;
+	U32 fastThreadHz = FAST_THREAD_HZ;
+	pthread_t fastThread;
+	threadID = pthread_create(&fastThread, NULL, 
+			   FastThreadRuntime, (void*)&fastThreadHz);
+
 	F64 targetMSPerFrame = 1000.0 / CORE_THREAD_HZ;
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
-	Cout("Starting ELON Hardware Layer Core Loop");
+	U32 lastCycleCount = __rdtsc();
 
 	for(;;){
 		//Reload ELONEngine
@@ -1588,9 +1703,11 @@ void ELON::RobotMain(){
 
 		}
 
+		HandleCycleCounters(&elonMemory);
+
 		//Temporary Subsystem updating while fast thread is closed
-		UpdateChassis(&elonMemory);
-		UpdateElevator(&elonMemory);
+		UpdateChassis(&elonMemory, &hardwareSystem);
+		UpdateElevator(&elonMemory, &hardwareSystem);
 
 		//Time processing
 		F64 workMSElapsed = SystemTime() - lastTime;
@@ -1615,18 +1732,25 @@ void ELON::RobotMain(){
 		newInput = oldInput;
 		oldInput = tempInput;
 
+		U32 endCycleCount = __rdtsc();
 		F64 endTime = SystemTime();
+
+		U32 cyclesElapsed = endCycleCount - lastCycleCount;
+		lastCycleCount = endCycleCount;
+		F64 megaCyclesPerFrame = ((F64)cyclesElapsed / (1000.0 * 1000.0));
+
 		F64 frameTimeMS = endTime - lastTime;
 		lastTime = endTime;
 		F64 Hz = 1000.0/ frameTimeMS;
 
 		//Frame logging
-		//COUT("Last Core Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
+		//COUT("Last Core Thread frame time: %.04fms (%.04fHz); Cycles elapsed: %.04fMCPF.",
+		//	   frameTimeMS, Hz, megaCyclesPerFrame);
 	}
 
 	//System shutdown
-	TerminateElevator();
-	TerminateChassis();
+	TerminateElevator(&hardwareSystem);
+	TerminateChassis(&hardwareSystem);
 
 	//Thread shutdown
 	//StopFastThread();
@@ -1639,6 +1763,7 @@ void ELON::RobotMain(){
 	F64 totalTimeElapsedSeconds = (SystemTime() - startTime) * 1000.0;
 	U32 totalMinutes = totalTimeElapsedSeconds / 60;
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
+
 	//TODO: Log
 	Cout("Total Core Thread Running time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
@@ -1668,7 +1793,7 @@ ELON::~ELON(){
  * Main function                                                   *
  *******************************************************************/
 
-I32 main() {
+S32 main() {
 	//Logging startup
 	InitializeLogging();
 	Cout("Logging Initialized!");

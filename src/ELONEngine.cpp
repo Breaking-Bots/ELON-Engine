@@ -16,6 +16,8 @@ extern "C" {
 #endif
 
 ELON_CALLBACK(SingleControllerInputControlledCallback){
+	BEGIN_TIMED_BLOCK(SingleControllerInputControlledCallback);
+
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
 	if(!memory->isInitialized){
 		state->chassisState.chassisMagnitude = DEF_SPEED;
@@ -43,10 +45,14 @@ ELON_CALLBACK(SingleControllerInputControlledCallback){
 	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
 
 	ELONDrive(memory, ly, rx);
-	Elevate(memory, (I32)(Button(gamepad, _RB) - Button(gamepad, _LB)));
+	Elevate(memory, (S32)(Button(gamepad, _RB) - Button(gamepad, _LB)));
+
+	END_TIMED_BLOCK(SingleControllerInputControlledCallback);
 }
 
 ELON_CALLBACK(DoubleControllerInputControlledCallback){
+	BEGIN_TIMED_BLOCK(DoubleControllerInputControlledCallback);
+
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
 	if(!memory->isInitialized){
 		state->chassisState.chassisMagnitude = DEF_SPEED;
@@ -78,7 +84,9 @@ ELON_CALLBACK(DoubleControllerInputControlledCallback){
 
 	ELONDrive(memory, ly, rx);
 	
-	Elevate(memory, (I32)(Button(liftGamepad, _RB) - Button(liftGamepad, _LB)));
+	Elevate(memory, (S32)(Button(liftGamepad, _RB) - Button(liftGamepad, _LB)));
+
+	END_TIMED_BLOCK(DoubleControllerInputControlledCallback);
 }
 
 ELON_CALLBACK(InitTeleop){

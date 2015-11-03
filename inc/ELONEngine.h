@@ -107,10 +107,10 @@ extern "C"
 
 typedef uint32_t B32;
 
-typedef int8_t I8;
-typedef int16_t I16;
-typedef int32_t I32;
-typedef int64_t I64;
+typedef int8_t S8;
+typedef int16_t S16;
+typedef int32_t S32;
+typedef int64_t S64;
 
 typedef uint8_t U8;
 typedef uint16_t U16;
@@ -120,17 +120,17 @@ typedef uint64_t U64;
 typedef float F32;
 typedef double F64;
 
-#define I8_MIN INT8_MIN
-#define I16_MIN INT16_MIN
-#define I32_MIN INT32_MIN
-#define I64_MIN INT64_MIN
+#define S8_MIN INT8_MIN
+#define S16_MIN INT16_MIN
+#define S32_MIN INT32_MIN
+#define S64_MIN INT64_MIN
 #define F32_MIN FLT_MIN
 #define F64_MIN DBL_MIN
 
-#define I8_MAX INT8_MAX
-#define I16_MAX INT16_MAX
-#define I32_MAX INT32_MAX
-#define I64_MAX INT64_MAX
+#define S8_MAX INT8_MAX
+#define S16_MAX INT16_MAX
+#define S32_MAX INT32_MAX
+#define S64_MAX INT64_MAX
 #define U8_MAX UINT8_MAX
 #define U16_MAX UINT16_MAX
 #define U32_MAX UINT32_MAX
@@ -154,6 +154,12 @@ typedef double F64;
 #define Align8(value) ((value + 7) & ~7)
 #define Align16(value) ((value + 15) & ~15)
 
+/**
+ * RDTSC dytor
+ */
+ #define RDTSC_CALLBACK(name) U32 name()
+ typedef RDTSC_CALLBACK(RDTSCCallback);
+
 #define F32_CALLBACK_F32_F32_F32_F32(name) F32 name(F32 a, F32 b, F32 c, F32 d)
 typedef F32_CALLBACK_F32_F32_F32_F32(F32CallbackF32F32F32F32);
 
@@ -166,8 +172,8 @@ typedef F32_CALLBACK_F32_F32(F32CallbackF32F32);
 #define F32_CALLBACK_F32(name) F32 name(F32 x)
 typedef F32_CALLBACK_F32(F32CallbackF32);
 
-#define I32_CALLBACK_F32(name) I32 name(F32 x)
-typedef I32_CALLBACK_F32(I32CallbackF32);
+#define S32_CALLBACK_F32(name) S32 name(F32 x)
+typedef S32_CALLBACK_F32(S32CallbackF32);
 
 #define U64_CALLBACK_U32(name) U64 name(U32 x)
 typedef U64_CALLBACK_U32(U64CallbackU32);
@@ -175,7 +181,7 @@ typedef U64_CALLBACK_U32(U64CallbackU32);
 /**
  * Logging dytor
  */
-#define LOGGING_CALLBACK(name) I32 name(const std::string& format, ...)
+#define LOGGING_CALLBACK(name) S32 name(const std::string& format, ...)
 typedef LOGGING_CALLBACK(LoggingCallback);
 
 /**
@@ -307,6 +313,21 @@ struct ELONState;
 struct ChassisState;
 struct ElevatorState;
 
+struct CycleCounter{
+	U32 cycleCount;
+	U32 hitCount;
+};
+
+#define BEGIN_TIMED_BLOCK(id) U32 startCycleCount##id = memory->__rdtsc();
+
+#define END_TIMED_BLOCK(id) memory->counters[COUNTER_##id].cycleCount += memory->__rdtsc() - startCycleCount##id; memory->counters[COUNTER_##id].hitCount++;
+
+enum{
+	COUNTER_SingleControllerInputControlledCallback,
+	COUNTER_DoubleControllerInputControlledCallback,
+	NUM_COUNTERS
+};
+
 struct ELONMemory{
 	B32 isInitialized;
 	U32 permanentStorageSize;
@@ -314,6 +335,10 @@ struct ELONMemory{
 	U32 transientStorageSize;
 	void* transientStorage; //REQUIRED to be cleared to zero at startup
 	U32 autonomousIndex;
+
+	CycleCounter counters[NUM_COUNTERS];
+
+	RDTSCCallback* __rdtsc;
 	LoggingCallback* Cout;
 	LoggingCallback* Cerr;
 	SystemTimeCallback* SystemTime;
@@ -322,7 +347,7 @@ struct ELONMemory{
 	F32CallbackF32* Sq;
 	F32CallbackF32* Cu;
 	F32CallbackF32* Qu;
-	I32CallbackF32* Sgn;
+	S32CallbackF32* Sgn;
 	F32CallbackF32* NormalizeAlpha;
 	F32CallbackF32F32F32* Lerp;
 	F32CallbackF32F32F32* Coserp;
@@ -344,7 +369,7 @@ struct ChassisState{
 	U32 nMotors = CHASSIS_NUM_MOTORS; //Number of used motors
 	B32 isInitialized; //Initialization flag
 	B32 chassisEnabled; //Allow chassis control flag
-	I32 invertedMotors[CHASSIS_NUM_MOTORS]; //Array of motor inversions
+	S32 invertedMotors[CHASSIS_NUM_MOTORS]; //Array of motor inversions
 	F32 lastGyroAngleDeg;
 	F32 gyroAngleDeg;
 };
@@ -353,7 +378,7 @@ struct ElevatorState{
 	F32 motorValue; //Motor speed value
 	F32 elevatorMagnitude; //Magnitude of elevator speed
 	B32 isInitialized; //Initialization flag
-	I32 invertedMotor; //Motor inversion
+	S32 invertedMotor; //Motor inversion
 };
 
 struct ELONState{
@@ -442,7 +467,7 @@ void InvertElevator(ELONMemory* memory);
 //TODO: Make this two types, one for Init, one for iterative callback
 
 /**
- * Called at 50Hz when in teleop mode
+ * Called at 50Hz
  */
 #define ELON_CALLBACK(name) void name(ELONMemory* memory, Input* input)
 typedef ELON_CALLBACK(ELONCallback);
