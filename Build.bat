@@ -35,7 +35,7 @@ IF errorlevel 0 (
    	exit /b %errorlevel%
 )
 
-arm-frc-linux-gnueabi-g++ "-LC:\\Users\\Zaeem/wpilib/cpp/current/lib" -Wl,-rpath,/opt/GenICam_v2_3/bin/Linux_armv7-a -o "..\\..\\bin\\FRCUserProgram"  -Wl,-Map,EHL.map "EHL.o" -lwpi 
+arm-frc-linux-gnueabi-g++ "-LC:/Users/Zaeem/wpilib/cpp/current/lib" -Wl,-rpath,/opt/GenICam_v2_3/bin/Linux_armv7-a -o "..\\..\\bin\\FRCUserProgram"  -Wl,-Map,EHL.map "EHL.o" -lwpi 
 
 popd
 

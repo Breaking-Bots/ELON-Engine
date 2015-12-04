@@ -9,7 +9,7 @@ pushd temp\\ELONEngine
 set CommonCompilerFlags= -std=c++1y -fPIC -fext-numeric-literals "-IC:\\Users\\Zaeem/wpilib/cpp/current/include" "-IZ:\\FRC\\Repositories\\ELON-Engine\\inc" -O0 -g3 -w
 
 echo Compiling libELON.so
-arm-frc-linux-gnueabi-g++ -shared %CommonCompilerFlags% %CommonLinkerFlags% -fmessage-length=0 -o ..\\..\\bin\\libELON.so -Wl,-Map,libELON.map "..\\..\\src\\ELONEngine.cpp" 
+arm-frc-linux-gnueabi-g++ -shared %CommonCompilerFlags% -fmessage-length=0 -o ..\\..\\bin\\libELON.so -Wl,-Map,libELON.map "..\\..\\src\\ELONEngine.cpp" 
 
 popd
 

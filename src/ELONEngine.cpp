@@ -7,6 +7,8 @@
 
 #include "ELONEngine.h"
 
+#include "Temp.cpp"
+
 /*******************************************************************
  * Elon Engine			                                           *
  *******************************************************************/
@@ -16,7 +18,7 @@ extern "C" {
 #endif
 
 ELON_CALLBACK(SingleControllerInputControlledCallback){
-	BEGIN_TIMED_BLOCK(SingleControllerInputControlledCallback);
+	//BEGIN_TIMED_BLOCK(SingleControllerInputControlledCallback);
 
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
 	if(!memory->isInitialized){
@@ -39,7 +41,7 @@ ELON_CALLBACK(SingleControllerInputControlledCallback){
 	}
 
 	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
-	state->elevatorState.elevatorMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
+	state->elevatorState.elevatorMagnitude = memory->Lerp(DEF_SPEED, MAX_SPEED,  memory->NormalizeAlpha(rt - lt));
 
 	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
 	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
@@ -47,11 +49,14 @@ ELON_CALLBACK(SingleControllerInputControlledCallback){
 	ELONDrive(memory, ly, rx);
 	Elevate(memory, (S32)(Button(gamepad, _RB) - Button(gamepad, _LB)));
 
-	END_TIMED_BLOCK(SingleControllerInputControlledCallback);
+	Elevate(memory, (S32)(Button(gamepad, _RB) - Button(gamepad, _LB)));
+	//memory->Cout("%.04f", ((F32)Button(gamepad, _RB) - (F32)Button(gamepad, _LB)) * state->elevatorState.elevatorMagnitude);
+
+	//END_TIMED_BLOCK(SingleControllerInputControlledCallback);
 }
 
 ELON_CALLBACK(DoubleControllerInputControlledCallback){
-	BEGIN_TIMED_BLOCK(DoubleControllerInputControlledCallback);
+	//BEGIN_TIMED_BLOCK(DoubleControllerInputControlledCallback);
 
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
 	if(!memory->isInitialized){
@@ -77,16 +82,14 @@ ELON_CALLBACK(DoubleControllerInputControlledCallback){
 	}
 
 	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, (rt - lt));
-	state->elevatorState.elevatorMagnitude = memory->Coserp(DEF_SPEED, MAX_SPEED, memory->NormalizeAlpha(rt2 - lt2));
+	state->elevatorState.elevatorMagnitude = memory->Lerp(DEF_SPEED, MAX_SPEED, memory->NormalizeAlpha(rt2 - lt2));
 
 	SetChassisMagnitude(memory, state->chassisState.chassisMagnitude);
 	SetElevatorMagnitude(memory, state->elevatorState.elevatorMagnitude);
 
 	ELONDrive(memory, ly, rx);
-	
-	Elevate(memory, (S32)(Button(liftGamepad, _RB) - Button(liftGamepad, _LB)));
 
-	END_TIMED_BLOCK(DoubleControllerInputControlledCallback);
+	//END_TIMED_BLOCK(DoubleControllerInputControlledCallback);
 }
 
 ELON_CALLBACK(InitTeleop){

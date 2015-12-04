@@ -26,18 +26,18 @@
  * Logging					                                       *
  *******************************************************************/
 
-MUTEX_ID loggingLock;
+//MUTEX_ID loggingLock;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void InitializeLogging(){
-	loggingLock = initializeMutexNormal();
+	//loggingLock = initializeMutexNormal();
 }
 
 LOGGING_CALLBACK(Cout){
-	CRITICAL_REGION(loggingLock);
+	//CRITICAL_REGION(loggingLock);
 		const char* formattedCStr = format.c_str();
 		char* fmt = new char[strlen(formattedCStr) + 10];
 		strcpy(fmt, "[ELON] ");
@@ -48,11 +48,11 @@ LOGGING_CALLBACK(Cout){
 		S32 result = vprintf(fmt, args);
 		va_end(args);
 		return result;
-	END_REGION;
+	//END_REGION;
 }
 
 LOGGING_CALLBACK(Cerr){
-	CRITICAL_REGION(loggingLock);
+	//CRITICAL_REGION(loggingLock);
 		const char* formattedCStr = format.c_str();
 		char* fmt = new char[strlen(formattedCStr) + 11];
 		strcpy(fmt, "[ERROR] ");
@@ -63,12 +63,12 @@ LOGGING_CALLBACK(Cerr){
 		S32 result = vprintf(fmt, args);
 		va_end(args);
 		return result;
-	END_REGION;
+	//END_REGION;
 }
 
 void TerminateLogging(){
-	takeMutex(loggingLock);
-	deleteMutex(loggingLock);
+	//takeMutex(loggingLock);
+	//deleteMutex(loggingLock);
 }
 
 #ifdef __cplusplus
@@ -345,7 +345,7 @@ extern "C" {
 #endif
 
 ELON_CALLBACK(ELONCallbackStub){
-
+	Cout("STUB");
 }
 
 
@@ -366,10 +366,12 @@ ELONEngine LoadELONEngine(std::string filename){
 			result.AutonomousCallback = (ELONCallback*)dlsym(result.module, "AutonomousCallback");
 			result.InitDisabled = (ELONCallback*)dlsym(result.module, "InitDisabled");
 			result.DisabledCallback = (ELONCallback*)dlsym(result.module, "DisabledCallback");
+			result.InitTemp = (ELONCallback*)dlsym(result.module, "InitTemp");
+			result.TempCallback = (ELONCallback*)dlsym(result.module, "TempCallback");
 
 			result.isValid = (result.InitTeleop && result.TeleopCallback && result.InitTest && result.TestCallback
 							 && result.InitAutonomous && result.AutonomousCallback && result.InitDisabled
-							 && result.DisabledCallback);
+							 && result.DisabledCallback && result.InitTemp && result.TempCallback);
 		}else{
 			Cerr("Invalid ELONEngine binary: \"%s\"", ELONEngineBinary);
 		}
@@ -386,7 +388,8 @@ ELONEngine LoadELONEngine(std::string filename){
 		result.InitAutonomous = ELONCallbackStub;
 		result.AutonomousCallback = ELONCallbackStub;
 		result.InitDisabled = ELONCallbackStub;
-		result.DisabledCallback = ELONCallbackStub;
+		result.InitTemp = ELONCallbackStub;
+		result.TempCallback = ELONCallbackStub;
 	}else{
 		Cout("ELONEngine successfully loaded!");
 	}
@@ -408,7 +411,8 @@ void UnloadELONEngine(ELONEngine* engine){
 	engine->InitAutonomous = ELONCallbackStub;
 	engine->AutonomousCallback = ELONCallbackStub;
 	engine->InitDisabled = ELONCallbackStub;
-	engine->DisabledCallback = ELONCallbackStub;
+	engine->InitTemp = ELONCallbackStub;
+	engine->TempCallback = ELONCallbackStub;
 }
 
 #ifdef __cplusplus
@@ -421,8 +425,8 @@ void UnloadELONEngine(ELONEngine* engine){
 
 //TODO: Do all hardware stuff in this layer here
 
- void InitializeEHLHardwareSystem(EHLHardwareSystem* hardwareSystem){
- 	if(hardwareSystem && hardwareSystem->initialized){
+void InitializeEHLHardwareSystem(EHLHardwareSystem* hardwareSystem){
+ 	if(hardwareSystem && !hardwareSystem->initialized){
  		for(U32 i = 0; i < NUM_DIGITAL_CHANNELS; i++){
  			S32 status = 0;
  			hardwareSystem->dPorts[i] = initializeDigitalPort(getPort(i), &status);
@@ -438,7 +442,59 @@ void UnloadELONEngine(ELONEngine* engine){
  			hardwareSystem->pwmPorts[i] = initializeDigitalPort(getPort(i), &status);
  		}
  	}
- }
+}
+
+void DigitalPinMode(EHLHardwareSystem* hardwareSystem, U32 pin, B32 mode){
+	if(hardwareSystem && hardwareSystem->initialized){
+		S32 status = 0;
+		allocateDIO(hardwareSystem->dPorts[pin], !mode, &status);
+	}
+}
+
+void PWMPinMode(EHLHardwareSystem* hardwareSystem, U32 pin, B32 enable, F32 initialDutyCycle, void* pwmGenerator){
+	if(hardwareSystem && hardwareSystem->initialized){
+		S32 status = 0;
+		if(enable && !pwmGenerator){
+			pwmGenerator = allocatePWM(&status);
+			setPWMDutyCycle(pwmGenerator, Clamp(initialDutyCycle, 0.0f, 1.0f), &status);
+			setPWMOutputChannel(pwmGenerator, pin, &status);
+		}else if(!enable && pwmGenerator){
+			setPWMOutputChannel(pwmGenerator, NUM_DIGITAL_CHANNELS, &status);
+			freePWM(pwmGenerator, &status);
+			pwmGenerator = NULL;
+		}
+	}
+}
+
+void PWMSetRate(EHLHardwareSystem* hardwareSystem, F32 rate){
+	S32 status = 0;
+	setPWMRate(rate, &status);
+}
+
+void PWMUpdateDutyCycle(EHLHardwareSystem* hardwareSystem, F32 dutyCycle, void* pwmGenerator){
+	if(pwmGenerator){
+		S32 status = 0;
+		setPWMDutyCycle(pwmGenerator, dutyCycle, &status);
+	}
+}
+
+B32 DigitalIn(EHLHardwareSystem* hardwareSystem, U32 pin){
+	B32 result = False;
+	if(hardwareSystem && hardwareSystem->initialized){
+		S32 status = 0;
+		result = getDIO(hardwareSystem->dPorts[pin], &status);
+	}
+	return result;
+}
+
+void DigitalOut(EHLHardwareSystem* hardwareSystem, U32 pin, B32 value){
+	if(hardwareSystem && hardwareSystem->initialized){
+		S32 status = 0;
+		setDIO(hardwareSystem->dPorts[pin], value, &status);
+	}
+}
+
+
 
 /*******************************************************************
  * Encoder		                                                   *
@@ -456,13 +512,13 @@ void InitializeEHLEncoder(EHLEncoder* encoder, U32 channelA, U32 channelB,
 			case 4:{
 				S32 status = 0;
 				encoder->HALEncoder = initializeEncoder(encoder->srcA->GetModuleForRouting(),
-														encoder->srcA->GetChannelForRouting(),
-														encoder->srcA->GetAnalogTriggerForRouting(),
-														encoder->srcB->GetModuleForRouting(),
-														encoder->srcB->GetChannelForRouting(),
-														encoder->srcB->GetAnalogTriggerForRouting(),
-														reverseDirection, &encoder->index, 
-														&status);
+									  encoder->srcA->GetChannelForRouting(),
+									  encoder->srcA->GetAnalogTriggerForRouting(),
+									  encoder->srcB->GetModuleForRouting(),
+									  encoder->srcB->GetChannelForRouting(),
+									  encoder->srcB->GetAnalogTriggerForRouting(),
+									  reverseDirection, &encoder->index, 
+									  &status);
 				encoder->counter = NULL;
 				EHLEncoderSetMaxPeriod(encoder, 0.5f);
 			} break;
@@ -582,7 +638,7 @@ void EHLEncoderSetSamplesToAverage(EHLEncoder* encoder, S8 samplesToAverage){
  *******************************************************************/
 
 void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem, 
-						U32 channel, EHLMotorType motorType){
+						U32 channel, U32 motorType){
 	if(motor && hardwareSystem && !motor->initialized && hardwareSystem->initialized){
 		motor->channel = channel;
 		motor->motorType = motorType;
@@ -594,7 +650,7 @@ void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem,
 						  getLoopTiming(&status));
 
 		switch(motorType){
-			case EHLMotorType::MT_TALON:{
+			case MT_TALON:{
 				motor->maxPwm = (S32)((2.037f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
 				motor->deadbandMaxPwm = (S32)((1.539f - DEFAULT_PWM_CENTER) * invLoopTime +
@@ -608,7 +664,7 @@ void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem,
 
 				setPWMPeriodScale(hardwareSystem->pwmPorts[channel], 0, &status);
 			} break;
-			case EHLMotorType::MT_VICTOR:{
+			case MT_VICTOR:{
 				motor->maxPwm = (S32)((2.027f - DEFAULT_PWM_CENTER) * invLoopTime +
 								DEFAULT_PWM_STEPS_DOWN - 1);
 				motor->deadbandMaxPwm = (S32)((1.525f - DEFAULT_PWM_CENTER) * invLoopTime +
@@ -690,10 +746,10 @@ F32 EHLMotorGetValue(EHLMotor* motor, EHLHardwareSystem* hardwareSystem){
 Victor* elevatorMotor;
 Encoder* liftEncoder;
 
-MUTEX_ID elevatorMotorLock;
+//MUTEX_ID elevatorMotorLock;
 
 void InitializeElevator(EHLHardwareSystem* hardwareSystem){
-	elevatorMotorLock = initializeMutexNormal();
+	//elevatorMotorLock = initializeMutexNormal();
 	elevatorMotor = new Victor(ELEVATOR_PORT);
 	liftEncoder = new Encoder(LIFT_ENCODER_PORT_A, LIFT_ENCODER_PORT_B, true, Encoder::EncodingType::k4X);
 	Cout("Elevator Initialized");
@@ -709,15 +765,15 @@ void UpdateElevator(ELONMemory* memory, EHLHardwareSystem* hardwareSystem){
 		liftEncoder->Reset();
 	}
 
-	CRITICAL_REGION(elevatorMotorLock);
+	//CRITICAL_REGION(elevatorMotorLock);
 		elevatorMotor->Set(state->motorValue);
-	END_REGION;
+	//END_REGION;
 }
 
 void TerminateElevator(EHLHardwareSystem* hardwareSystem){
 	delete liftEncoder;
 	delete elevatorMotor;
-	deleteMutex(elevatorMotorLock);
+	//deleteMutex(elevatorMotorLock);
 }
 
 #endif
@@ -731,12 +787,12 @@ Gyro* gyro;
 Encoder* leftEncoder;
 Encoder* rightEncoder;
 
-MUTEX_ID chassisMotorLock;
-MUTEX_ID chassisGyroLock;
+//MUTEX_ID chassisMotorLock;
+//MUTEX_ID chassisGyroLock;
 
 void InitializeChassis(EHLHardwareSystem* hardwareSystem){
-	chassisMotorLock = initializeMutexNormal();
-	chassisGyroLock = initializeMutexNormal();
+	//chassisMotorLock = initializeMutexNormal();
+	//chassisGyroLock = initializeMutexNormal();
 	motors[0] = new Talon(CHASSIS_PORT_FL);
 	motors[1] = new Talon(CHASSIS_PORT_BL);
 	motors[2] = new Talon(CHASSIS_PORT_FR);
@@ -764,17 +820,17 @@ void UpdateChassis(ELONMemory* memory, EHLHardwareSystem* hardwareSystem){
 		leftEncoder->Reset();
 		rightEncoder->Reset();
 	}
-	CRITICAL_REGION(chassisMotorLock);
+	//CRITICAL_REGION(chassisMotorLock);
 		for(U32 i = 0; i < CHASSIS_NUM_MOTORS; i++){
 			motors[i]->Set(state->motorValues[i]);
 		}
-	END_REGION;
-	CRITICAL_REGION(chassisGyroLock);
+	//END_REGION;
+	//CRITICAL_REGION(chassisGyroLock);
 		state->lastGyroAngleDeg = state->gyroAngleDeg;
 		state->gyroAngleDeg = gyro->GetAngle();
-	END_REGION;
+	//END_REGION;
 	//TODO: Lock
-	Cout("%d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
+	//Cout("%d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
 }
 
 void TerminateChassis(EHLHardwareSystem* hardwareSystem){
@@ -784,8 +840,8 @@ void TerminateChassis(EHLHardwareSystem* hardwareSystem){
 	for(U32 i = 0; i < CHASSIS_NUM_MOTORS; i++){
 		delete motors[i];
 	}
-	deleteMutex(chassisGyroLock);
-	deleteMutex(chassisMotorLock);
+	//deleteMutex(chassisGyroLock);
+	//deleteMutex(chassisMotorLock);
 }
 #endif
 
@@ -1478,11 +1534,17 @@ void ELON::RobotMain(){
 	Input* newInput = &inputs[0];
 	Input* oldInput = &inputs[1];
 
+#if TEMP_TEST
+	U32 tempStartTime = 0;
+#else
+
+#endif
 	//Chassis initialization
 	InitializeChassis(&hardwareSystem);
 
 	//Elevator initialization
 	InitializeElevator(&hardwareSystem);
+
 
 	//ELONEngine startup
 	ELONEngine engine = LoadELONEngine(ELONEngineBinary);
@@ -1491,6 +1553,7 @@ void ELON::RobotMain(){
 	B32 teleopInit = False;
 	B32 testInit = False;
 	B32 disabledInit = False;
+	B32 tempInit = False;
 
 	for(U32 i = 0; i < NUM_REPLAY_BUFFERS; i++){
 		EHLReplayBuffer* replayBuffer = &ehlState.replayBuffers[i];
@@ -1535,7 +1598,7 @@ void ELON::RobotMain(){
 	}
 
 	Cout("Starting ELON Hardware Layer Core Loop");
-
+#if 0
 	__init_asm_counters__();
 	__init_perfcounters__(True, False);
 
@@ -1545,11 +1608,11 @@ void ELON::RobotMain(){
 	pthread_t fastThread;
 	threadID = pthread_create(&fastThread, NULL, 
 			   FastThreadRuntime, (void*)&fastThreadHz);
-
+#endif
 	F64 targetMSPerFrame = 1000.0 / CORE_THREAD_HZ;
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
-	U32 lastCycleCount = __rdtsc();
+	//U32 lastCycleCount = __rdtsc();
 
 	for(;;){
 		//Reload ELONEngine
@@ -1568,7 +1631,53 @@ void ELON::RobotMain(){
 		ehlState.autonRecordingIndex = elonMemory.autonomousIndex;
 		ehlState.autonPlayBackIndex = elonMemory.autonomousIndex;
 		ProcessEHLInputProtocols(&ehlState, newInput);
+#if TEMP_TEST
+		//Recording
+		//Input Recording
+		if(ehlState.inputRecordingIndex){
+			RecordInput(&ehlState, newInput);
+		}
 
+		//Input PlayBack
+		if(ehlState.inputPlayBackIndex){
+			PlayBackInput(&ehlState, newInput);
+		}
+
+		//For temporary testing of components
+		if(!tempInit){
+			engine.InitTemp(&elonMemory, newInput);
+			tempInit = True;
+		}
+
+		ELONState* elonState = scast<ELONState*>(elonMemory.permanentStorage);
+		ChassisState* chassisState = &(elonState->chassisState);
+
+		chassisState->motorValues[0] = 0.5f;
+		chassisState->motorValues[1] = 0.5f;
+		chassisState->motorValues[2] = -0.5f;
+		chassisState->motorValues[3] = -0.5f;
+		Gamepad* gamepad = GetGamepad(newInput, 0);
+
+		if(gamepad->buttons[_RB].endedDown && (gamepad->buttons[_RB].halfTransitionCount)){
+			tempStartTime = 0;
+			leftEncoder->Reset();
+			rightEncoder->Reset();
+			Cout("Start: %d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
+		}
+
+		if(tempStartTime > 5 * CORE_THREAD_HZ){
+			tempStartTime = 0;
+			Cout("End: %d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
+			leftEncoder->Reset();
+			rightEncoder->Reset();
+		}
+
+		tempStartTime++;
+
+
+		//engine.TempCallback(&elonMemory, newInput);
+
+#else
 		//Executing user function based on robot state
 		if(IsAutonomous() && IsEnabled()){
 			if(!autonomousInit){
@@ -1584,7 +1693,6 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(False);
 				ds->InTest(False);
 				ds->InDisabled(False);
-				ELON::Autonomous();
 				engine.InitAutonomous(&elonMemory, newInput);
 				autonomousInit = True;
 				teleopInit = False;
@@ -1621,7 +1729,6 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(True);
 				ds->InTest(False);
 				ds->InDisabled(False);
-				ELON::OperatorControl();
 				engine.InitTeleop(&elonMemory, newInput);
 				autonomousInit = False;
 				teleopInit = True;
@@ -1667,7 +1774,6 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(False);
 				ds->InTest(True);
 				ds->InDisabled(False);
-				ELON::Test();
 				engine.InitTest(&elonMemory, newInput);
 				autonomousInit = False;
 				teleopInit = False;
@@ -1691,7 +1797,6 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(False);
 				ds->InTest(False);
 				ds->InDisabled(True);
-				ELON::Disabled();
 				engine.InitDisabled(&elonMemory, newInput);
 				autonomousInit = False;
 				teleopInit = False;
@@ -1703,11 +1808,13 @@ void ELON::RobotMain(){
 
 		}
 
-		HandleCycleCounters(&elonMemory);
+		//HandleCycleCounters(&elonMemory);
 
+#endif
 		//Temporary Subsystem updating while fast thread is closed
 		UpdateChassis(&elonMemory, &hardwareSystem);
 		UpdateElevator(&elonMemory, &hardwareSystem);
+
 
 		//Time processing
 		F64 workMSElapsed = SystemTime() - lastTime;
@@ -1732,20 +1839,19 @@ void ELON::RobotMain(){
 		newInput = oldInput;
 		oldInput = tempInput;
 
-		U32 endCycleCount = __rdtsc();
+		//U32 endCycleCount = __rdtsc();
 		F64 endTime = SystemTime();
 
-		U32 cyclesElapsed = endCycleCount - lastCycleCount;
-		lastCycleCount = endCycleCount;
-		F64 megaCyclesPerFrame = ((F64)cyclesElapsed / (1000.0 * 1000.0));
+		//U32 cyclesElapsed = endCycleCount - lastCycleCount;
+		//lastCycleCount = endCycleCount;
+		//F64 megaCyclesPerFrame = ((F64)cyclesElapsed / (1000.0 * 1000.0));
 
 		F64 frameTimeMS = endTime - lastTime;
 		lastTime = endTime;
 		F64 Hz = 1000.0/ frameTimeMS;
 
 		//Frame logging
-		//COUT("Last Core Thread frame time: %.04fms (%.04fHz); Cycles elapsed: %.04fMCPF.",
-		//	   frameTimeMS, Hz, megaCyclesPerFrame);
+		//Cout("Last Core Thread frame time: %.04fms (%.04fHz).", frameTimeMS, Hz);
 	}
 
 	//System shutdown
@@ -1765,23 +1871,7 @@ void ELON::RobotMain(){
 	F32 totalSeconds = totalTimeElapsedSeconds - (totalMinutes * 60.0f);
 
 	//TODO: Log
-	Cout("Total Core Thread Running time: %dm%.04fs.", totalMinutes, totalSeconds);
-}
-
-void ELON::Autonomous(){
-
-}
-
-void ELON::OperatorControl(){
-
-}
-
-void ELON::Test(){
-
-}
-
-void ELON::Disabled(){
-
+	//Cout("Total Core Thread Running time: %dm%.04fs.", totalMinutes, totalSeconds);
 }
 
 ELON::~ELON(){

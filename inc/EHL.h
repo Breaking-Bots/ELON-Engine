@@ -156,6 +156,8 @@ struct ELONEngine{
 	ELONCallback* AutonomousCallback;
 	ELONCallback* InitDisabled;
 	ELONCallback* DisabledCallback;
+	ELONCallback* InitTemp;
+	ELONCallback* TempCallback;
 	B32 isValid;
 };
 
@@ -177,15 +179,19 @@ void UnloadELONEngine(ELONEngine* engine);
 
 //TODO: Do all hardware stuff in this layer here
 
-#define NUM_DIGITAL_CHANNELS 26
-#define NUM_ANALOG_INPUTS 8
-#define NUM_ANALOG_OUTPUTS 2
-#define NUM_SOLENOID_CHANNELS 8
-#define NUM_SOLENOID_MODULES 2
-#define NUM_PWM_CHANNELS 20
-#define NUM_RELAY_CHANNELS 8
-#define NUM_PDP_CHANNELS 16
-#define NUM_CHASSIS_SLOTS 8
+#define NUM_DIGITAL_CHANNELS (26)
+#define NUM_ANALOG_INPUTS (8)
+#define NUM_ANALOG_OUTPUTS (2)
+#define NUM_SOLENOID_CHANNELS (8)
+#define NUM_SOLENOID_MODULES (2)
+#define NUM_PWM_CHANNELS (20)
+#define NUM_RELAY_CHANNELS (8)
+#define NUM_PDP_CHANNELS (16)
+#define NUM_CHASSIS_SLOTS (8)
+
+#define MODE_INPUT (0)
+#define MODE_OUTPUT (1)
+#define MODE_PWM (2)
 
 struct EHLHardwareSystem{
 	void* dPorts[NUM_DIGITAL_CHANNELS];
@@ -258,13 +264,11 @@ enum EHLPeriodMultiplier{
 	PM_4X = 4
 };
 
-enum EHLMotorType{
-	MT_TALON,
-	MT_VICTOR
-};
+#define	MT_TALON 0
+#define	MT_VICTOR 1
 
 struct EHLMotor{
-	EHLMotorType motorType;
+	U32 motorType;
 	U32 channel;
 	S32 maxPwm;
 	S32 deadbandMaxPwm;
@@ -275,7 +279,7 @@ struct EHLMotor{
 };
 
 void InitializeEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem,
-						U32 channel, EHLMotorType motorType);
+						U32 channel, U32 motorType);
 
 void TerminateEHLMotor(EHLMotor* motor, EHLHardwareSystem* hardwareSystem);
 
@@ -471,22 +475,12 @@ struct EHLRecordedInput{
  * ELON class that inherits SampleRobot from WPILIB, required for WPILIB
  */
 class ELON : public SampleRobot{
-	//TODO: Make these values
-	Task* fastThread;
 public:
 	ELON();
 
 	void RobotInit();
 
 	void RobotMain();
-
-	void Autonomous();
-
-	void OperatorControl();
-
-	void Test();
-
-	void Disabled();
 
 	~ELON();
 };
