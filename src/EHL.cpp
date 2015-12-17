@@ -830,7 +830,13 @@ void UpdateChassis(ELONMemory* memory, EHLHardwareSystem* hardwareSystem){
 		state->gyroAngleDeg = gyro->GetAngle();
 	//END_REGION;
 	//TODO: Lock
-	//Cout("%d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
+		S32 leftEncoderVal = -leftEncoder->GetRaw();
+		S32 rightEncoderVal = -rightEncoder->GetRaw();
+		state->dLeftEncoder = leftEncoderVal - state->leftEncoder;
+		state->leftEncoder = leftEncoderVal;
+		state->dRightEncoder = rightEncoderVal - state->rightEncoder;
+		state->rightEncoder = rightEncoderVal;
+	//Cout("%d ||| %d", state->leftEncoder, state->rightEncoder);
 }
 
 void TerminateChassis(EHLHardwareSystem* hardwareSystem){
@@ -1535,7 +1541,7 @@ void ELON::RobotMain(){
 	Input* oldInput = &inputs[1];
 
 #if TEMP_TEST
-	U32 tempStartTime = 0;
+
 #else
 
 #endif
@@ -1609,12 +1615,17 @@ void ELON::RobotMain(){
 	threadID = pthread_create(&fastThread, NULL, 
 			   FastThreadRuntime, (void*)&fastThreadHz);
 #endif
-	F64 targetMSPerFrame = 1000.0 / CORE_THREAD_HZ;
+	ELONState* elonState = scast<ELONState*>(elonMemory.permanentStorage);
+	ChassisState* chassisState = &(elonState->chassisState);
+	ElevatorState* elevatorState = &(elonState->elevatorState);
+	F32 dt = 1.0 / CORE_THREAD_HZ;
+	F64 targetMSPerFrame = 1000.0 *dt;
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
 	//U32 lastCycleCount = __rdtsc();
 
 	for(;;){
+
 		//Reload ELONEngine
 		U32 newELONEngineWriteTime = GetLastWriteTime(ELONEngineBinary);
 		//Cout("%d", newELONEngineWriteTime);
@@ -1624,6 +1635,8 @@ void ELON::RobotMain(){
 			UnloadELONEngine(&engine);
 			engine = LoadELONEngine(ELONEngineBinary);
 			loadCounter = 0;
+			elonMemory.isInitialized = False;
+			tempInit = False;
 		}
 
 		//Update Input
@@ -1645,37 +1658,20 @@ void ELON::RobotMain(){
 
 		//For temporary testing of components
 		if(!tempInit){
-			engine.InitTemp(&elonMemory, newInput);
+			engine.InitTemp(&elonMemory, newInput, dt);
 			tempInit = True;
 		}
 
-		ELONState* elonState = scast<ELONState*>(elonMemory.permanentStorage);
-		ChassisState* chassisState = &(elonState->chassisState);
-
-		chassisState->motorValues[0] = 0.5f;
-		chassisState->motorValues[1] = 0.5f;
-		chassisState->motorValues[2] = -0.5f;
-		chassisState->motorValues[3] = -0.5f;
-		Gamepad* gamepad = GetGamepad(newInput, 0);
-
-		if(gamepad->buttons[_RB].endedDown && (gamepad->buttons[_RB].halfTransitionCount)){
-			tempStartTime = 0;
-			leftEncoder->Reset();
-			rightEncoder->Reset();
-			Cout("Start: %d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
-		}
-
-		if(tempStartTime > 5 * CORE_THREAD_HZ){
-			tempStartTime = 0;
-			Cout("End: %d ||| %d", leftEncoder->GetRaw(), rightEncoder->GetRaw());
+		if(newInput->gamepads[0].buttons[_RB].endedDown && newInput->gamepads[0].buttons[_RB].halfTransitionCount){
+			ResetPIDState(&chassisState->leftPID);
+			ResetPIDState(&chassisState->rightPID);
+			chassisState->leftEncoder = 0;
+			chassisState->rightEncoder = 0;
 			leftEncoder->Reset();
 			rightEncoder->Reset();
 		}
 
-		tempStartTime++;
-
-
-		//engine.TempCallback(&elonMemory, newInput);
+		engine.TempCallback(&elonMemory, newInput, dt);
 
 #else
 		//Executing user function based on robot state
@@ -1693,7 +1689,7 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(False);
 				ds->InTest(False);
 				ds->InDisabled(False);
-				engine.InitAutonomous(&elonMemory, newInput);
+				engine.InitAutonomous(&elonMemory, newInput, dt);
 				autonomousInit = True;
 				teleopInit = False;
 				testInit = False;
@@ -1712,7 +1708,7 @@ void ELON::RobotMain(){
 			PlayBackAutonomous(&ehlState, newInput);
 
 			//Autonomous Iterative Dytor
-			engine.AutonomousCallback(&elonMemory, newInput);
+			engine.AutonomousCallback(&elonMemory, newInput, dt);
 
 		}else if(IsOperatorControl() && IsEnabled()){
 			if(!teleopInit){
@@ -1729,14 +1725,14 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(True);
 				ds->InTest(False);
 				ds->InDisabled(False);
-				engine.InitTeleop(&elonMemory, newInput);
+				engine.InitTeleop(&elonMemory, newInput, dt);
 				autonomousInit = False;
 				teleopInit = True;
 				testInit = False;
 				disabledInit = False;
 			}
 			//Teleop Iterative Dytor
-			engine.TeleopCallback(&elonMemory, newInput);
+			engine.TeleopCallback(&elonMemory, newInput, dt);
 
 		}else if(IsTest() && IsEnabled()){
 
@@ -1774,14 +1770,14 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(False);
 				ds->InTest(True);
 				ds->InDisabled(False);
-				engine.InitTest(&elonMemory, newInput);
+				engine.InitTest(&elonMemory, newInput, dt);
 				autonomousInit = False;
 				teleopInit = False;
 				testInit = True;
 				disabledInit = False;
 			}
 			//Test Iterative Dytor
-			engine.TestCallback(&elonMemory, newInput);
+			engine.TestCallback(&elonMemory, newInput, dt);
 
 		}else if(IsDisabled()){
 			if(!disabledInit){
@@ -1797,14 +1793,14 @@ void ELON::RobotMain(){
 				ds->InOperatorControl(False);
 				ds->InTest(False);
 				ds->InDisabled(True);
-				engine.InitDisabled(&elonMemory, newInput);
+				engine.InitDisabled(&elonMemory, newInput, dt);
 				autonomousInit = False;
 				teleopInit = False;
 				testInit = False;
 				disabledInit = True;
 			}
 			//Disabled Iterative Dytor
-			engine.DisabledCallback(&elonMemory, newInput);
+			engine.DisabledCallback(&elonMemory, newInput, dt);
 
 		}
 

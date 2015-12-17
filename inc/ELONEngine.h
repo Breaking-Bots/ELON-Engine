@@ -364,6 +364,25 @@ struct ELONMemory{
 	U64CallbackU32* DecToBin;
 };
 
+typedef struct PIDState{
+	F32 kP;
+	F32 kI;
+	F32 kD;
+	F32 e;
+	F32 e1;
+	F32 e2;
+	F32 u;
+	F32 du;
+} PIDState;
+
+inline void ResetPIDState(PIDState* pidState){
+	pidState->e = 0;
+	pidState->e1 = 0;
+	pidState->e2 = 0;
+	pidState->u = 0;
+	pidState->du = 0;
+}
+
 struct ChassisState{
 	F32 motorValues[CHASSIS_NUM_MOTORS]; //Array of motor speed values
 	F32 chassisMagnitude; //Magnitude of chassis speed
@@ -374,6 +393,19 @@ struct ChassisState{
 	S32 invertedMotors[CHASSIS_NUM_MOTORS]; //Array of motor inversions
 	F32 lastGyroAngleDeg;
 	F32 gyroAngleDeg;
+	S32 leftEncoder;
+	S32 rightEncoder;
+	S32 dLeftEncoder;
+	S32 dRightEncoder;
+	S32 counter;
+
+	//PID
+	PIDState leftPID;
+	PIDState rightPID;
+
+	//Temp
+	F32 leftSpeed;
+	F32 rightSpeed;
 };
 
 struct ElevatorState{
@@ -471,7 +503,7 @@ void InvertElevator(ELONMemory* memory);
 /**
  * Called at 50Hz
  */
-#define ELON_CALLBACK(name) void name(ELONMemory* memory, Input* input)
+#define ELON_CALLBACK(name) void name(ELONMemory* memory, Input* input, F32 dt)
 typedef ELON_CALLBACK(ELONCallback);
 
 #endif

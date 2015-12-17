@@ -98,9 +98,9 @@ ELON_CALLBACK(InitTeleop){
 
 ELON_CALLBACK(TeleopCallback){
 	#if NUM_GAMEPADS == 1
-		SingleControllerInputControlledCallback(memory, input);
+		SingleControllerInputControlledCallback(memory, input, dt);
 	#elif NUM_GAMEPADS == 2
-		DoubleControllerInputControlledCallback(memory, input);
+		DoubleControllerInputControlledCallback(memory, input, dt);
 	#endif
 }
 
@@ -111,9 +111,9 @@ ELON_CALLBACK(InitTest){
 ELON_CALLBACK(TestCallback){
 	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
 	#if NUM_GAMEPADS == 1
-		SingleControllerInputControlledCallback(memory, input);
+		SingleControllerInputControlledCallback(memory, input, dt);
 	#elif NUM_GAMEPADS == 2
-		DoubleControllerInputControlledCallback(memory, input);
+		DoubleControllerInputControlledCallback(memory, input, dt);
 	#endif
 }
 
@@ -124,9 +124,9 @@ ELON_CALLBACK(InitAutonomous){
 ELON_CALLBACK(AutonomousCallback){
 	memory->autonomousIndex = CURRENT_AUTONOMOUS_INDEX;
 	#if NUM_GAMEPADS == 1
-		SingleControllerInputControlledCallback(memory, input);
+		SingleControllerInputControlledCallback(memory, input, dt);
 	#elif NUM_GAMEPADS == 2
-		DoubleControllerInputControlledCallback(memory, input);
+		DoubleControllerInputControlledCallback(memory, input, dt);
 	#endif
 }
 
@@ -192,7 +192,7 @@ void RawDrive(ELONMemory* memory, F32 mgntd, F32 curve){
 }
 
 void TankDrive(ELONMemory* memory, F32 leftMgntd, F32 rightMgntd){
-	SetLeftRightMotorValues(memory, leftMgntd,rightMgntd);
+	SetLeftRightMotorValues(memory, leftMgntd, rightMgntd);
 }
 
 void ELONDrive(ELONMemory* memory, F32 fwdMgntd, F32 turnMgntd){
