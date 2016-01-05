@@ -783,7 +783,7 @@ void TerminateElevator(EHLHardwareSystem* hardwareSystem){
  *******************************************************************/
 #if 1
 Talon* motors[CHASSIS_NUM_MOTORS];
-Gyro* gyro;
+AnalogGyro* gyro;
 Encoder* leftEncoder;
 Encoder* rightEncoder;
 
@@ -797,7 +797,7 @@ void InitializeChassis(EHLHardwareSystem* hardwareSystem){
 	motors[1] = new Talon(CHASSIS_PORT_BL);
 	motors[2] = new Talon(CHASSIS_PORT_FR);
 	motors[3] = new Talon(CHASSIS_PORT_BR);
-	gyro = new Gyro(GYRO_PORT);
+	gyro = new AnalogGyro(GYRO_PORT);
 	gyro->SetSensitivity(GYRO_SENSITIVITY);
 	leftEncoder = new Encoder(LEFT_ENCODER_PORT_A, LEFT_ENCODER_PORT_B, true, Encoder::EncodingType::k4X);
 	rightEncoder = new Encoder(RIGHT_ENCODER_PORT_A, RIGHT_ENCODER_PORT_B, false, Encoder::EncodingType::k4X);
@@ -1405,7 +1405,7 @@ void* FastThreadRuntime(void* targetHz){
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
 	U32 lastCycleCount = __rdtsc();
-
+	Cout("Fast Thread begins");
 	for(;;){
 
 		
@@ -1471,7 +1471,7 @@ void ELON::RobotInit(){
 void ELON::RobotMain(){
 
 	LiveWindow* lw = LiveWindow::GetInstance();
-	DriverStation* ds = DriverStation::GetInstance();
+	DriverStation* ds = &DriverStation::GetInstance();
 	lw->SetEnabled(True);
 
 	Cout("Initializing");
@@ -1615,6 +1615,7 @@ void ELON::RobotMain(){
 	threadID = pthread_create(&fastThread, NULL, 
 			   FastThreadRuntime, (void*)&fastThreadHz);
 #endif
+	
 	ELONState* elonState = scast<ELONState*>(elonMemory.permanentStorage);
 	ChassisState* chassisState = &(elonState->chassisState);
 	ElevatorState* elevatorState = &(elonState->elevatorState);
@@ -1811,6 +1812,7 @@ void ELON::RobotMain(){
 		UpdateChassis(&elonMemory, &hardwareSystem);
 		UpdateElevator(&elonMemory, &hardwareSystem);
 
+		//SmartDashboard
 
 		//Time processing
 		F64 workMSElapsed = SystemTime() - lastTime;

@@ -14,10 +14,8 @@ set CommonLinkerFlags= -shared-libgcc -fPIC
 arm-frc-linux-gnueabi-g++ -shared %CommonCompilerFlags% %CommonLinkerFlags% -fmessage-length=0 -o ..\\..\\bin\\libELON.so -Wl,-Map,libELON.map "..\\..\\src\\ELONEngine.cpp"
 
 IF errorlevel 0 (
-	echo .
 	echo ELONEngine Successfully Compiled
 ) else (
-	echo .
   	echo ELONEngine Compilation Failed with status %errorlevel%
    	exit /b %errorlevel%
 )
@@ -27,7 +25,6 @@ pushd temp\\ELONHardwareLayer
 
 arm-frc-linux-gnueabi-g++ %CommonCompilerFlags% -c -fmessage-length=0 "..\\..\\src\\EHL.cpp"
 
-echo .
 IF errorlevel 0 (
 	echo FRCUserProgram Successfully Compiled
 ) else (

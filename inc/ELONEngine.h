@@ -398,6 +398,8 @@ struct ChassisState{
 	S32 dLeftEncoder;
 	S32 dRightEncoder;
 	S32 counter;
+	F32 vLeft;
+	F32 vRight;
 
 	//PID
 	PIDState leftPID;
@@ -406,6 +408,9 @@ struct ChassisState{
 	//Temp
 	F32 leftSpeed;
 	F32 rightSpeed;
+	U32 leftCount;
+	F32 leftTotal;
+	F32 leftAvg;
 };
 
 struct ElevatorState{

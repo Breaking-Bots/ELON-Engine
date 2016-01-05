@@ -1,11 +1,13 @@
 Filename , LOC 
 EHL.h , 378 
 EHLELONEngine.h , 3 
-ELONEngine.h , 405 
+ELONEngine.h , 410 
 ELONEngineInput.h , 0 
 ELONEngineMemory.h , 0 
 ELONEngineUtil.h , 0 
-EHL.cpp , 1583 
+EHL.cpp , 1586 
+EHLTest.cpp , 0 
+EHLUtil.cpp , 0 
 ELONEngine.cpp , 284 
-Temp.cpp , 101 
-Grand Total , 2754  
+Temp.cpp , 103 
+Grand Total , 2764  

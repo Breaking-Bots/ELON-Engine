@@ -47,7 +47,7 @@ ELON_CALLBACK(InitTemp){
 		ResetPIDState(&state->chassisState.leftPID);
 		ResetPIDState(&state->chassisState.rightPID);
 		state->chassisState.leftPID.kP = 0.4f;
-		state->chassisState.leftPID.kI = 0.0f;
+		state->chassisState.leftPID.kI = 0.5f;
 		state->chassisState.leftPID.kD = 0;
 		state->chassisState.rightPID.kP = 0.4f;
 		state->chassisState.rightPID.kI = 0.0f;
@@ -55,6 +55,10 @@ ELON_CALLBACK(InitTemp){
 		state->chassisState.counter = 0;
 		state->chassisState.leftSpeed = 0;
 		state->chassisState.rightSpeed = 0;
+		state->chassisState.vLeft = 0;
+		state->chassisState.vRight = 0;
+		state->chassisState.leftTotal = 0;
+		state->chassisState.leftCount = 0;
 		memory->isInitialized = True;
 	}
 }
@@ -66,53 +70,54 @@ ELON_CALLBACK(TempCallback){
 	ElevatorState* elevatorState = &(state->elevatorState);
 	Gamepad* gamepad = GetGamepad(input, 0);
 
-	F32 target = 3050;
+	F32 target = 1000;
 
-	F32 leftSpeed = chassisState->dLeftEncoder / dt;
-	F32 rightSpeed = chassisState->dRightEncoder / dt;
-	chassisState->leftSpeed += leftSpeed;
-	chassisState->rightSpeed += rightSpeed;
-		
+	F32 lSpeed = chassisState->dLeftEncoder / dt;
+	chassisState->leftSpeed = lSpeed;
+	chassisState->leftTotal += lSpeed;
+	chassisState->leftCount++;
 
-	F32 pidOutputLeft = PIDCalculation(memory, chassisState->leftEncoder, target, 
+	F32 pidOutputLeft = PIDCalculation(memory, chassisState->leftAvg, target, 
 			dt, &chassisState->leftPID);
 
-	F32 pidOutputRight = PIDCalculation(memory, chassisState->rightEncoder, target, 
-			dt, &chassisState->rightPID);
-#if 0
-	if(chassisState->counter > 1.0f/dt){
-		memory->Cout("%.02f ||| %.02f ||| %.02f ||| %.02f", chassisState->leftSpeed
-					 * dt, chassisState->rightSpeed * dt, pidOutputLeft - target, 
-					 pidOutputRight - target);
+	memory->Cout("%.06f ||| %.06f", lSpeed, pidOutputLeft);
+
+	//chassisState->vLeft += pidOutputLeft;
+	//chassisState->vRight += pidOutputRight;
+
+	//memory->Cout("lSpeed: %.02f vLeft: %.02f", chassisState->leftSpeed, chassisState->vLeft);
+#if 1
+	if(chassisState->counter > 20){
+		//memory->Cout("Avg Speed Left: %.06f", vAvg);
+		chassisState->leftAvg = chassisState->leftTotal/chassisState->leftCount;
 		chassisState->counter = 0;
 		chassisState->leftSpeed = 0;
 		chassisState->rightSpeed = 0;
+		chassisState->leftTotal = 0;
+		chassisState->leftCount = 0;
 	}
 	chassisState->counter++;
 #endif
+	//temp
+	F32 velocityFactor = 1.0f/4580.0f;
+
+	F32 normalizedOutputLeft = memory->Clamp((pidOutputLeft + target) * velocityFactor, -0.5f, 0.5f);
 
 
-	F32 normalizedOutputLeft = memory->Clamp(pidOutputLeft / target, -0.3f, 0.3f);
-	F32 normalizedOutputRight = memory->Clamp(pidOutputRight / target, -0.3f, 0.3f);
 #if 1
-	F32 finalLeftOutput = 0;
-	F32 finalRightOutput = 0;
-	if (normalizedOutputLeft < 0 ){
+	F32 finalLeftOutput = normalizedOutputLeft;
+	/*if (normalizedOutputLeft < 0 ){
 		finalLeftOutput = normalizedOutputLeft-0.1329f;
 	}else{
 		finalLeftOutput = normalizedOutputLeft+0.0829f;
-	}
+	}*/
 
-	if (normalizedOutputRight < 0 ){
-		finalRightOutput = normalizedOutputRight-0.089836f;
-	}else{
-		finalRightOutput = normalizedOutputRight;
-	}
 
-	//TankDrive(memory, finalLeftOutput, finalRightOutput);
+	TankDrive(memory, finalLeftOutput, finalLeftOutput);
+#else
+	TankDrive(memory, 1.0f, 1.0f);
 #endif
-	//TankDrive(memory, 0.0f, 0.0f);
-#if 1
+#if 0
 	memory->Cout("%f ||| %f ||| %d ||| %d ||| %f", normalizedOutputLeft, 
 				 normalizedOutputRight,
 				 chassisState->leftEncoder, chassisState->rightEncoder, 

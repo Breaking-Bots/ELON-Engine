@@ -17,8 +17,8 @@ if errorlevel 0 (
 	echo .
 	echo ELONEngine Compilation Successful
 	echo Deploying libELON.so
-	ssh lvuser@roboRIO-5428.local "rm /home/lvuser/libELON.so || true;" 2>nul
-	sftp -oBatchMode=no -b sftpELONEngine lvuser@roboRIO-5428.local
+	ssh lvuser@roboRIO-5428-FRC.local "rm /home/lvuser/libELON.so || true;" 2>nul
+	sftp -oBatchMode=no -b sftpELONEngine lvuser@roboRIO-5428-FRC.local
 ) else (
 	echo .
    	echo ELONEngine Compilation Failed with status %errorlevel%
