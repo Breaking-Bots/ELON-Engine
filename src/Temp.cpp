@@ -70,17 +70,18 @@ ELON_CALLBACK(TempCallback){
 	ElevatorState* elevatorState = &(state->elevatorState);
 	Gamepad* gamepad = GetGamepad(input, 0);
 
-	F32 target = 1000;
+	F32 target = -200;
 
-	F32 lSpeed = chassisState->dLeftEncoder / dt;
+	F32 lSpeed = chassisState->dLeftEncoder;
+	F32 rSpeed = chassisState->dRightEncoder;
 	chassisState->leftSpeed = lSpeed;
 	chassisState->leftTotal += lSpeed;
 	chassisState->leftCount++;
 
-	F32 pidOutputLeft = PIDCalculation(memory, chassisState->leftAvg, target, 
+	F32 pidOutputLeft = PIDCalculation(memory, lSpeed, target, 
 			dt, &chassisState->leftPID);
 
-	memory->Cout("%.06f ||| %.06f", lSpeed, pidOutputLeft);
+	memory->Cout("%.06f ||| %.06f ||| %.06f", lSpeed, rSpeed, pidOutputLeft);
 
 	//chassisState->vLeft += pidOutputLeft;
 	//chassisState->vRight += pidOutputRight;
@@ -99,9 +100,10 @@ ELON_CALLBACK(TempCallback){
 	chassisState->counter++;
 #endif
 	//temp
-	F32 velocityFactor = 1.0f/4580.0f;
+	F32 velocityFactor = 1.0f/310.0f;
 
-	F32 normalizedOutputLeft = memory->Clamp((pidOutputLeft + target) * velocityFactor, -0.5f, 0.5f);
+	F32 normalizedOutputLeft = memory->Clamp((pidOutputLeft + target) * velocityFactor,
+							   -1.0f, 1.0f);
 
 
 #if 1

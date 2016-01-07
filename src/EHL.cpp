@@ -830,8 +830,8 @@ void UpdateChassis(ELONMemory* memory, EHLHardwareSystem* hardwareSystem){
 		state->gyroAngleDeg = gyro->GetAngle();
 	//END_REGION;
 	//TODO: Lock
-		S32 leftEncoderVal = -leftEncoder->GetRaw();
-		S32 rightEncoderVal = -rightEncoder->GetRaw();
+		S32 leftEncoderVal = -leftEncoder->Get();
+		S32 rightEncoderVal = -rightEncoder->Get();
 		state->dLeftEncoder = leftEncoderVal - state->leftEncoder;
 		state->leftEncoder = leftEncoderVal;
 		state->dRightEncoder = rightEncoderVal - state->rightEncoder;
