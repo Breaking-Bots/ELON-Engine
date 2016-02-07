@@ -1663,15 +1663,6 @@ void ELON::RobotMain(){
 			tempInit = True;
 		}
 
-		if(newInput->gamepads[0].buttons[_RB].endedDown && newInput->gamepads[0].buttons[_RB].halfTransitionCount){
-			ResetPIDState(&chassisState->leftPID);
-			ResetPIDState(&chassisState->rightPID);
-			chassisState->leftEncoder = 0;
-			chassisState->rightEncoder = 0;
-			leftEncoder->Reset();
-			rightEncoder->Reset();
-		}
-
 		engine.TempCallback(&elonMemory, newInput, dt);
 
 #else

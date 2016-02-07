@@ -46,9 +46,9 @@ ELON_CALLBACK(InitTemp){
 		state->chassisState.chassisMagnitude = DEF_SPEED;
 		ResetPIDState(&state->chassisState.leftPID);
 		ResetPIDState(&state->chassisState.rightPID);
-		state->chassisState.leftPID.kP = 0.4f;
-		state->chassisState.leftPID.kI = 0.5f;
-		state->chassisState.leftPID.kD = 0;
+		state->chassisState.leftPID.kP = 0.0001f;
+		state->chassisState.leftPID.kI = 0.2f;
+		state->chassisState.leftPID.kD = -0.050f;
 		state->chassisState.rightPID.kP = 0.4f;
 		state->chassisState.rightPID.kI = 0.0f;
 		state->chassisState.rightPID.kD = 0;
@@ -70,7 +70,38 @@ ELON_CALLBACK(TempCallback){
 	ElevatorState* elevatorState = &(state->elevatorState);
 	Gamepad* gamepad = GetGamepad(input, 0);
 
-	F32 target = -200;
+	S32 lb = (S32)Button(gamepad, _LB);
+	S32 rb = (S32)Button(gamepad, _RB);
+	chassisState->motorValues[0] = 1.0f * (memory->Clamp(-rb, -1.0f, 1.0f) * chassisState->invertedMotors[0]);
+	chassisState->motorValues[1] = 1.0f * (memory->Clamp(-lb, -1.0f, 1.0f) * chassisState->invertedMotors[1]);
+	chassisState->motorValues[2] = 1.0f * (memory->Clamp(lb, -1.0f, 1.0f) * chassisState->invertedMotors[2]);
+	chassisState->motorValues[3] = 1.0f * (memory->Clamp(rb, -1.0f, 1.0f) * chassisState->invertedMotors[3]);
+	if((S32)ButtonTapped(gamepad, _R3) && !state->started){
+		state->startTime = 0;
+		state->started = True;
+	}
+
+	U32 cycles = (U32)(0.2475f * CORE_THREAD_HZ);
+
+	if(state->started){
+		if(state->startTime < cycles){
+			chassisState->motorValues[0] = 0.75f * 1.0f * chassisState->invertedMotors[0];
+			chassisState->motorValues[1] = 0.75f * 1.0f * chassisState->invertedMotors[1];		
+			chassisState->motorValues[2] = 0.75f * -1.0f * chassisState->invertedMotors[2];
+			chassisState->motorValues[3] = 0.75f * -1.0f * chassisState->invertedMotors[3];			
+		}else{
+			chassisState->motorValues[0] = 0.0f;
+			chassisState->motorValues[1] = 0.0f;	
+			chassisState->motorValues[2] = 0.0f;
+			chassisState->motorValues[3] = 0.0f;
+			state->started = False;	
+		}
+		state->startTime++;
+	}
+
+
+#if 0
+	F32 target = 75;
 
 	F32 lSpeed = chassisState->dLeftEncoder;
 	F32 rSpeed = chassisState->dRightEncoder;
@@ -125,8 +156,9 @@ ELON_CALLBACK(TempCallback){
 				 chassisState->leftEncoder, chassisState->rightEncoder, 
 				 (chassisState->leftEncoder + chassisState->rightEncoder)/2.0f);
 #endif
-}
+#endif
 	
+}
 }
 
 

@@ -5,7 +5,7 @@
  * Properties				                                       *
  *******************************************************************/
 
-#define TEMP_TEST 1
+#define TEMP_TEST 0
 
 #define CURRENT_AUTONOMOUS_INDEX 1
 #define NUM_AUTON_BUFFERS 4
@@ -16,7 +16,7 @@
 #define DISABLE_FAST_THREAD 1
 #define DISABLE_CORE_THREAD 0
 
-#define CORE_THREAD_HZ 5
+#define CORE_THREAD_HZ 50
 #define FAST_THREAD_HZ 200
 
 #define NUM_GAMEPADS 1
@@ -423,6 +423,8 @@ struct ElevatorState{
 struct ELONState{
 	ChassisState chassisState;
 	ElevatorState elevatorState;
+	U32 startTime;
+	B32 started;
 };
 
 /*******************************************************************

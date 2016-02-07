@@ -21,6 +21,7 @@ ELON_CALLBACK(SingleControllerInputControlledCallback){
 	//BEGIN_TIMED_BLOCK(SingleControllerInputControlledCallback);
 
 	ELONState* state = scast<ELONState*>(memory->permanentStorage);
+	ChassisState* chassisState = &(state->chassisState);
 	if(!memory->isInitialized){
 		state->chassisState.chassisMagnitude = DEF_SPEED;
 		state->elevatorState.elevatorMagnitude = DEF_SPEED;
@@ -39,6 +40,10 @@ ELON_CALLBACK(SingleControllerInputControlledCallback){
 	if(ButtonTapped(gamepad, _START)){
 		EnableChassis(memory, !IsChassisEnabled(memory));
 	}
+
+	F32 lSpeed = chassisState->dLeftEncoder;
+	F32 rSpeed = chassisState->dRightEncoder;
+	memory->Cout("%.06f ||| %.06f", lSpeed, rSpeed);
 
 	state->chassisState.chassisMagnitude = memory->SystemMagnitudeInterpolation(MIN_SPEED, DEF_SPEED, MAX_SPEED, rt - lt);
 	state->elevatorState.elevatorMagnitude = memory->Lerp(DEF_SPEED, MAX_SPEED,  memory->NormalizeAlpha(rt - lt));
