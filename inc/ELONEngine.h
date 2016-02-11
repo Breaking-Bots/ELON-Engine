@@ -5,7 +5,7 @@
  * Properties				                                       *
  *******************************************************************/
 
-#define TEMP_TEST 0
+#define TEMP_TEST 1
 
 #define CURRENT_AUTONOMOUS_INDEX 1
 #define NUM_AUTON_BUFFERS 4

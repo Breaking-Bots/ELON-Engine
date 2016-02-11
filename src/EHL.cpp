@@ -1619,8 +1619,8 @@ void ELON::RobotMain(){
 	ELONState* elonState = scast<ELONState*>(elonMemory.permanentStorage);
 	ChassisState* chassisState = &(elonState->chassisState);
 	ElevatorState* elevatorState = &(elonState->elevatorState);
-	F32 dt = 1.0 / CORE_THREAD_HZ;
-	F64 targetMSPerFrame = 1000.0 *dt;
+	F32 dt = 1.0f / CORE_THREAD_HZ;
+	F64 targetMSPerFrame = 1000.0 * dt;
 	F64 startTime = SystemTime();
 	F64 lastTime = SystemTime();
 	//U32 lastCycleCount = __rdtsc();
@@ -1808,7 +1808,7 @@ void ELON::RobotMain(){
 		//Time processing
 		F64 workMSElapsed = SystemTime() - lastTime;
 		if(workMSElapsed < targetMSPerFrame){
-			Wait((targetMSPerFrame - workMSElapsed * 1000.0));
+			Wait((targetMSPerFrame - workMSElapsed) * 1000.0);
 			F64 testMSElapsedForFrame = SystemTime() - lastTime;
 			if(testMSElapsedForFrame >= targetMSPerFrame){
 				Cerr("Core Thread Runtime waited too long.");

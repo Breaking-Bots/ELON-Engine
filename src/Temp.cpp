@@ -72,23 +72,41 @@ ELON_CALLBACK(TempCallback){
 
 	S32 lb = (S32)Button(gamepad, _LB);
 	S32 rb = (S32)Button(gamepad, _RB);
-	chassisState->motorValues[0] = 1.0f * (memory->Clamp(-rb, -1.0f, 1.0f) * chassisState->invertedMotors[0]);
-	chassisState->motorValues[1] = 1.0f * (memory->Clamp(-lb, -1.0f, 1.0f) * chassisState->invertedMotors[1]);
-	chassisState->motorValues[2] = 1.0f * (memory->Clamp(lb, -1.0f, 1.0f) * chassisState->invertedMotors[2]);
-	chassisState->motorValues[3] = 1.0f * (memory->Clamp(rb, -1.0f, 1.0f) * chassisState->invertedMotors[3]);
+	S32 l3 = (S32)Button(gamepad, _L3);
+	F32 lt = Analog(gamepad, _LT);
+	F32 rt = Analog(gamepad, _RT);
+	chassisState->motorValues[0] = -0.2f * (memory->Clamp(rb, -1.0f, 1.0f) * chassisState->invertedMotors[0]);
+	chassisState->motorValues[1] = 0.8f * (memory->Clamp(lb, -1.0f, 1.0f) * chassisState->invertedMotors[1]);
+	chassisState->motorValues[2] = 0.8f * (memory->Clamp(lb, -1.0f, 1.0f) * chassisState->invertedMotors[2]);
+	chassisState->motorValues[3] = -0.2f * (memory->Clamp(rb, -1.0f, 1.0f) * chassisState->invertedMotors[3]);
+	
+	if(rt + lt > 0.0f){
+		chassisState->motorValues[0] = 1.0f * (memory->Clamp(rt, -1.0f, 1.0f) * chassisState->invertedMotors[0]);
+		chassisState->motorValues[1] = 1.0f * (memory->Clamp(lt, -1.0f, 1.0f) * chassisState->invertedMotors[1]);
+		chassisState->motorValues[2] = 1.0f * (memory->Clamp(lt, -1.0f, 1.0f) * chassisState->invertedMotors[2]);
+		chassisState->motorValues[3] = 1.0f * (memory->Clamp(rt, -1.0f, 1.0f) * chassisState->invertedMotors[3]);
+	}
+
+	if(l3){
+		chassisState->motorValues[0] = -1.0f * chassisState->invertedMotors[0];
+		chassisState->motorValues[1] = -1.0f * chassisState->invertedMotors[1];		
+		chassisState->motorValues[2] = -1.0f * chassisState->invertedMotors[2];
+		chassisState->motorValues[3] = -1.0f * chassisState->invertedMotors[3];	
+	}
+
 	if((S32)ButtonTapped(gamepad, _R3) && !state->started){
 		state->startTime = 0;
 		state->started = True;
 	}
 
-	U32 cycles = (U32)(0.2475f * CORE_THREAD_HZ);
+	U32 cycles = (U32)(0.1475f * CORE_THREAD_HZ);
 
 	if(state->started){
 		if(state->startTime < cycles){
-			chassisState->motorValues[0] = 0.75f * 1.0f * chassisState->invertedMotors[0];
-			chassisState->motorValues[1] = 0.75f * 1.0f * chassisState->invertedMotors[1];		
-			chassisState->motorValues[2] = 0.75f * -1.0f * chassisState->invertedMotors[2];
-			chassisState->motorValues[3] = 0.75f * -1.0f * chassisState->invertedMotors[3];			
+			chassisState->motorValues[0] = -0.5f * 1.0f * chassisState->invertedMotors[0];
+			chassisState->motorValues[1] = -0.5f * 1.0f * chassisState->invertedMotors[1];		
+			chassisState->motorValues[2] = -0.5f * 1.0f * chassisState->invertedMotors[2];
+			chassisState->motorValues[3] = -0.5f * 1.0f * chassisState->invertedMotors[3];			
 		}else{
 			chassisState->motorValues[0] = 0.0f;
 			chassisState->motorValues[1] = 0.0f;	
